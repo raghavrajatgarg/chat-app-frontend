@@ -214,16 +214,15 @@ export default function App() {
       ) : (
         <div className={styles.chatWrapper}>
           <header className={styles.header}>
-            <div className={styles.headerLeft}>
-              <img src={user.photoURL} alt="Profile" className={styles.profileImg} />
-              <div>
-                <strong className={styles.headerUserName}>{user.displayName}</strong>
-                <span className={styles.liveIndicator}>● Live Node Link</span>
-              </div>
-            </div>
-            <button onClick={() => signOut(auth)} className={styles.logoutBtn}>Log Out</button>
-          </header>
-
+  <div className={styles.headerLeft}>
+    <img src={user.photoURL} alt="Profile" className={styles.profileImg} />
+    <div className={styles.headerUserInfo}>
+      <span className={styles.headerUserName}>{user.displayName}</span>
+      <span className={styles.liveIndicator}>● Live Node Link</span>
+    </div>
+  </div>
+  <button onClick={() => signOut(auth)} className={styles.logoutBtn}>Log Out</button>
+</header>
           <div className={styles.mainContent}>
             <aside className={styles.sidebar}>
               <div className={styles.sidebarSection}>
