@@ -204,16 +204,21 @@ const roomRef = useRef(room);
     return <div className={styles.loader}><h3>Loading...</h3></div>;
   }
   const handleDelete = async (messageId) => {
-  try {
-    await fetch(`${BACKEND_URL}/api/messages/${messageId}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.uid })
-    });
-  } catch (err) {
-    console.error("Failed to delete message", err);
-  }
-};
+    try {
+      const token = await user.getIdToken();
+      
+      await fetch(`${BACKEND_URL}/api/messages/${messageId}`, {
+        method: 'DELETE',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // 🌟 Pass token so checkAuth middleware allows it
+        },
+        body: JSON.stringify({ userId: user.uid })
+      });
+    } catch (err) {
+      console.error("Failed to delete message", err);
+    }
+  };
   // Filter active users currently in the selected room
   const currentRoomUsers = activeUsers.filter(u => u.room === room);
 
