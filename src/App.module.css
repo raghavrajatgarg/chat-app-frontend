@@ -237,12 +237,12 @@
 
 .messageBubbleMe {
   background: #2563eb;
-  border-radius: 8px 8px 2px 8px;
+  border-radius: 8px 8px 2px 8px !important;
 }
 
 .messageBubbleOther {
   background: #1e293b;
-  border-radius: 8px 8px 8px 2px;
+  border-radius: 8px 8px 8px 2px !important;
 }
 
 .messageText {
@@ -612,7 +612,9 @@
 
 .messageActionTrigger {
   position: absolute;
-  top: 4px;
+  top: -3.5px !important;
+  right: -0.5px !important;
+  scale: 0.75;
 }
 
 .optionsButton {
@@ -627,6 +629,7 @@
   align-items: center;
   justify-content: center;
   transition: color 0.2s;
+  opacity: 0.55 !important;
 }
 
 /* Optional: Subtle color shift on hover so the user knows they are hovering it, without any background fill */
@@ -890,7 +893,7 @@
 /* Transparent chevron button that fades in on hover in the top right corner */
 .messageActionTrigger {
   position: absolute;
-  top: 6px;
+  top: 2px;
   right: 6px;
   opacity: 0; /* Hidden by default */
   transition: opacity 0.2s ease-in-out; /* Smooth fade-in effect */
@@ -901,9 +904,12 @@
 .messageBubbleBase:hover .messageActionTrigger {
   opacity: 1; 
 }
-
+/* Keeps the chevron visible if the menu is open */
+.messageActionTrigger.forceVisible {
+  opacity: 1 !important;
+}
 .optionsButton {
-  background: transparent; /* Transparent background */
+  background: transparent !important; /* Transparent background */
   border: none;
   color: #ffffff; /* Pure white icon */
   cursor: pointer;
@@ -931,6 +937,7 @@
   z-index: 50;
   overflow: hidden;
   min-width: 100px;
+  scale: 1.25;
 }
 
 .dropdownItemDelete {
@@ -948,4 +955,24 @@
 
 .dropdownItemDelete:hover {
   background: #374151;
+}
+/* Fixed chevron stretching by resetting line-height and padding */
+.optionsButton {
+  background: transparent !important;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1; /* Fixes vertical text stretching */
+  padding: 0;     /* Prevents layout distortion */
+}
+
+.optionsButton:hover {
+  background: transparent !important;
+  color: #93c5fd;
 }

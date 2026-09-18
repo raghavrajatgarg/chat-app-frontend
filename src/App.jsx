@@ -24,6 +24,7 @@ export default function App() {
   const typingTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
   const roomsList = ['general', 'tech', 'random', 'gaming'];
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   const roomRef = useRef(room);
   useEffect(() => { roomRef.current = room; }, [room]);
@@ -269,51 +270,40 @@ export default function App() {
                 ) : (
                   <>
                    {messages.map((msg, index) => {
-  const messageKey = msg._id || index;
   const isMe = msg.senderUid === user.uid;
   const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-  const isDropdownOpen = activeDropdownId === messageKey;
-  const isHovered = hoveredMessageId === messageKey;
+  const isMenuOpen = openMenuId === msg._id;
 
   return (
-    <div key={messageKey} className={styles.messageRow} style={{ justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+    <div key={msg._id || index} className={styles.messageRow} style={{ justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
       <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
         {!isMe && <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />}
         <div>
           {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
-          
-          <div 
-            className={styles.messageWrapper}
-            onMouseEnter={() => setHoveredMessageId(messageKey)}
-            onMouseLeave={() => setHoveredMessageId(null)}
-          >
-            {/* Added relative positioning wrapper for the bubble content */}
-            <div className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}>
-              <span className={styles.messageText}>{msg.text}</span>
-              <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
+          <div className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}>
+            <span className={styles.messageText}>{msg.text}</span>
+            <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
 
-              {/* Chevron Trigger Button Positioned Inside Top Right */}
-              {isMe && msg._id && (isHovered || isDropdownOpen) && (
-                <div className={styles.messageActionTrigger}>
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveDropdownId(isDropdownOpen ? null : messageKey);
-                    }}
-                    className={styles.optionsButton}
-                    title="Message options"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                  </button>
+            {/* 🌟 Action trigger: Appends a 'forceVisible' class if this message's menu is open */}
+            {isMe && msg._id && (
+              <div className={`${styles.messageActionTrigger} ${isMenuOpen ? styles.forceVisible : ''}`}>
+                <button 
+                  onClick={() => setOpenMenuId(isMenuOpen ? null : msg._id)} 
+                  className={styles.optionsButton}
+                  title="Message options"
+                >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16">
+  <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+</svg>
+                </button>
 
-                  {isDropdownOpen && (
+                {/* Dropdown Menu */}
+                 {isMenuOpen && (
                     <div className={styles.dropdownMenu}>
                       <button 
                         onClick={() => {
                           setActiveDropdownId(null);
-                          setDeleteModalMessageId(messageKey);
+                          setDeleteModalMessageId(msg._id);
                         }}
                         className={styles.dropdownItemDelete}
                       >
@@ -321,16 +311,14 @@ export default function App() {
                       </button>
                     </div>
                   )}
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 })}
-
                     {typingUser && (
                       <div className={styles.typingIndicatorRow}>
                         <div className={styles.typingBubble}>
