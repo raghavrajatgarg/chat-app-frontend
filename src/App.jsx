@@ -66,14 +66,26 @@ export default function App() {
     };
   }, [user]);
   // 2. Fetch history and tell socket to join the room whenever the 'room' state changes
+ // Add a new state for room loading at the top of your component alongside others:
+  const [roomLoading, setRoomLoading] = useState(false);
+
+  // Update your room-switching useEffect:
   useEffect(() => {
     if (!user || !socket) return;
+
+    setRoomLoading(true); // 🌟 Turn on loading animation when room changes
 
     // Fetch messages specific to this room
     fetch(`${BACKEND_URL}/api/messages?room=${room}`)
       .then((res) => res.json())
-      .then((data) => setMessages(data))
-      .catch((err) => console.error("Error loading chat history:", err));
+      .then((data) => {
+        setMessages(data);
+        setRoomLoading(false); // 🌟 Turn off loading when data arrives
+      })
+      .catch((err) => {
+        console.error("Error loading chat history:", err);
+        setRoomLoading(false);
+      });
 
     // Tell the existing socket connection to switch rooms
     socket.emit('join_room', room);
@@ -186,27 +198,36 @@ export default function App() {
 
             <div className={styles.chatWindow}>
               <div className={styles.messageFeed}>
-                {messages.map((msg, index) => {
-                  const isMe = msg.senderUid === user.uid;
-                  const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                {roomLoading ? (
+                  <div className={styles.roomLoaderContainer}>
+                    <div className={styles.spinner} />
+                    <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '10px' }}>
+                      Switching to #{room}...
+                    </p>
+                  </div>
+                ) : (
+                  messages.map((msg, index) => {
+                    const isMe = msg.senderUid === user.uid;
+                    const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
-                  return (
-                    <div key={msg._id || index} className={styles.messageRow} style={{ justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-                      <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
-                        {!isMe && <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />}
-                        <div>
-                          {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
-                          <div className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}>
-                            <span className={styles.messageText}>{msg.text}</span>
-                            <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>
-                              {timeString}
-                            </span>
+                    return (
+                      <div key={msg._id || index} className={styles.messageRow} style={{ justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+                        <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
+                          {!isMe && <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />}
+                          <div>
+                            {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
+                            <div className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}>
+                              <span className={styles.messageText}>{msg.text}</span>
+                              <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>
+                                {timeString}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
                 <div ref={messagesEndRef} />
               </div>
 
@@ -215,10 +236,11 @@ export default function App() {
                   type="text" 
                   value={newMessage} 
                   onChange={(e) => setNewMessage(e.target.value)} 
-                  placeholder="Type a message..." 
+                  placeholder={roomLoading ? "Loading room..." : "Type a message..."}
+                  disabled={roomLoading} // 🌟 Disable typing while switching rooms
                   className={styles.chatInput} 
                 />
-                <button type="submit" className={styles.sendBtn}>
+                <button type="submit" disabled={roomLoading} className={styles.sendBtn}>
                   Send
                 </button>
               </form>
