@@ -25,6 +25,11 @@ export default function App() {
 
   const roomsList = ['general', 'tech', 'random', 'gaming'];
 
+  // 🌟 Add this ref to track the live room state inside socket listeners
+  const roomRef = useRef(room);
+  useEffect(() => {
+    roomRef.current = room;
+  }, [room]);
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
