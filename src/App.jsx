@@ -70,6 +70,15 @@ const roomRef = useRef(room);
 
       // Clear previous listeners to avoid duplication
       newSocket.off('receive_message');
+      socket.on('message_updated', (updatedMsg) => {
+  setMessages((prev) => 
+    prev.map((msg) => (msg._id === updatedMsg._id ? updatedMsg : msg))
+  );
+});
+
+socket.on('message_deleted', (deletedId) => {
+  setMessages((prev) => prev.filter((msg) => msg._id !== deletedId));
+});
       
      newSocket.on('receive_message', (message) => {
         // Log to your browser console (F12) to verify incoming socket data
@@ -196,7 +205,17 @@ const roomRef = useRef(room);
   if (loading) {
     return <div className={styles.loader}><h3>Loading...</h3></div>;
   }
-
+  const handleDelete = async (messageId) => {
+  try {
+    await fetch(`${BACKEND_URL}/api/messages/${messageId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user.uid })
+    });
+  } catch (err) {
+    console.error("Failed to delete message", err);
+  }
+};
   // Filter active users currently in the selected room
   const currentRoomUsers = activeUsers.filter(u => u.room === room);
 
