@@ -832,3 +832,115 @@
 .dropdownItemDelete:hover {
   background: #374151;
 }
+
+
+.messageBubbleBase {
+  color: #fff;
+  padding: 8px 12px;
+  /* Extra bottom padding to let the inline timestamp fit nicely */
+  padding-bottom: 6px; 
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+  word-break: break-word;
+  font-size: 15px;
+  line-height: 1.4;
+  position: relative; /* Essential for absolute positioning of the hover chevron */
+  display: inline-block;
+  max-width: 100%;
+}
+
+.messageBubbleMe {
+  background: #2563eb;
+  border-radius: 16px 16px 2px 16px;
+}
+
+.messageBubbleOther {
+  background: #1e293b;
+  border-radius: 16px 16px 16px 2px;
+}
+
+/* Grouping text and timestamp so the timestamp aligns neatly on the bottom right */
+.messageText {
+  display: inline;
+  margin-right: 48px; /* Leaves breathing room so text doesn't flow directly into the inline timestamp */
+}
+
+.messageTimestampMe {
+  display: inline-block;
+  font-size: 10px;
+  color: #bfdbfe;
+  margin-left: 6px;
+  vertical-align: bottom;
+  user-select: none;
+}
+
+.messageTimestampOther {
+  display: inline-block;
+  font-size: 10px;
+  color: #94a3b8;
+  margin-left: 6px;
+  vertical-align: bottom;
+  user-select: none;
+}
+
+/* Transparent chevron button that fades in on hover in the top right corner */
+.messageActionTrigger {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  opacity: 0; /* Hidden by default */
+  transition: opacity 0.2s ease-in-out; /* Smooth fade-in effect */
+}
+
+/* Make the chevron appear when hovering over the parent message wrapper/bubble */
+.messageWrapper:hover .messageActionTrigger,
+.messageBubbleBase:hover .messageActionTrigger {
+  opacity: 1; 
+}
+
+.optionsButton {
+  background: transparent; /* Transparent background */
+  border: none;
+  color: #ffffff; /* Pure white icon */
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.optionsButton:hover {
+  background: rgba(255, 255, 255, 0.15); /* Subtle highlight when hovering the chevron itself */
+}
+
+.dropdownMenu {
+  position: absolute;
+  right: 0;
+  top: 28px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  overflow: hidden;
+  min-width: 100px;
+}
+
+.dropdownItemDelete {
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: #f87171;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.dropdownItemDelete:hover {
+  background: #374151;
+}
