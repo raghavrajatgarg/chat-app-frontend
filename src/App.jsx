@@ -25,7 +25,11 @@ export default function App() {
   const messagesEndRef = useRef(null);
   const roomsList = ['general', 'tech', 'random', 'gaming'];
   const [openMenuId, setOpenMenuId] = useState(null);
-
+  const [chatType, setChatType] = useState('channel'); // 'channel' or 'dm'
+  const [selectedUser, setSelectedUser] = useState(null); // The user object you are DMing
+  const currentRoom = chatType === 'channel' 
+    ? room 
+    : getPrivateRoomId(user.uid, selectedUser?.uid);
   const roomRef = useRef(room);
   useEffect(() => { roomRef.current = room; }, [room]);
 
@@ -57,6 +61,7 @@ export default function App() {
       newSocket.emit('user_connected', {
         uid: user.uid,
         name: user.displayName,
+        email: user.email,
         avatar: user.photoURL
       });
 
@@ -118,7 +123,9 @@ export default function App() {
       if (socket) socket.disconnect();
     };
   }, [user]);
-
+const getPrivateRoomId = (uid1, uid2) => {
+  return [uid1, uid2].sort().join('_');
+};
   // Handle room changes, history loading, and joining socket room
   useEffect(() => {
     if (!user) return;
@@ -198,7 +205,7 @@ export default function App() {
     return <div className={styles.loader}><h3>Loading...</h3></div>;
   }
 
-  const currentRoomUsers = activeUsers.filter(u => u.room === room);
+  const currentRoomUsers = activeUsers
 
   return (
     <div className={styles.container}>
@@ -247,7 +254,7 @@ export default function App() {
               <div className={styles.sidebarDivider} />
 
               <div className={styles.sidebarSection}>
-                <h4 className={styles.sidebarTitle}>Online in #{room} ({currentRoomUsers.length})</h4>
+                <h4 className={styles.sidebarTitle}>Online users</h4>
                 <div className={styles.userList}>
                   {currentRoomUsers.map((u) => (
                     <div key={u.uid} className={styles.userItem}>
