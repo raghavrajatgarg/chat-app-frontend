@@ -13,11 +13,17 @@ export default function App() {
   const [activeUsers, setActiveUsers] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [socket, setSocket] = useState(null);
-  
-  // 🌟 Added room state here
   const [room, setRoom] = useState('general');
+  const [roomLoading, setRoomLoading] = useState(false);
   
+  // 🌟 New features state
+  const [typingUser, setTypingUser] = useState(null);
+  const [unreadCounts, setUnreadCounts] = useState({ general: 0, tech: 0, random: 0, gaming: 0 });
+  
+  const typingTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
+
+  const roomsList = ['general', 'tech', 'random', 'gaming'];
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -27,10 +33,9 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
- // Establish the socket connection once the user and their token are ready
+  // Establish socket connection with token authentication
   useEffect(() => {
     if (!user) return;
-
     let isMounted = true;
 
     user.getIdToken().then((token) => {
@@ -38,7 +43,7 @@ export default function App() {
 
       const newSocket = io(BACKEND_URL, { 
         autoConnect: true,
-        auth: { token } // Passes the Firebase token to satisfy server.js io.use()
+        auth: { token }
       });
       setSocket(newSocket);
       
@@ -54,45 +59,86 @@ export default function App() {
       });
 
       newSocket.on('receive_message', (message) => {
-        setMessages((prev) => [...prev, message]);
+        // If message belongs to current room, push to feed
+        setMessages((prev) => {
+          if (message.room === room) {
+            return [...prev, message];
+          }
+          return prev;
+        });
+
+        // If message is for a background room, increment unread badge counter
+        if (message.room !== room && message.senderUid !== user.uid) {
+          setUnreadCounts((prev) => ({
+            ...prev,
+            [message.room]: (prev[message.room] || 0) + 1
+          }));
+        }
       });
-    }).catch((err) => {
-      console.error("Token fetch error for socket:", err);
-    });
+
+      newSocket.on('display_typing', ({ userName, room: typingRoom }) => {
+        if (typingRoom === room) {
+          setTypingUser(userName);
+        }
+      });
+
+      newSocket.on('hide_typing', ({ room: typingRoom }) => {
+        if (typingRoom === room) {
+          setTypingUser(null);
+        }
+      });
+
+    }).catch((err) => console.error("Socket auth token error:", err));
 
     return () => {
       isMounted = false;
       if (socket) socket.disconnect();
     };
   }, [user]);
-  // 2. Fetch history and tell socket to join the room whenever the 'room' state changes
- // Add a new state for room loading at the top of your component alongside others:
-  const [roomLoading, setRoomLoading] = useState(false);
 
-  // Update your room-switching useEffect:
+  // Handle room changes, history loading, and clearing unread badges for active room
   useEffect(() => {
     if (!user || !socket) return;
 
-    setRoomLoading(true); // 🌟 Turn on loading animation when room changes
+    setRoomLoading(true);
+    setTypingUser(null);
 
-    // Fetch messages specific to this room
+    // Clear unread badge for the newly selected room
+    setUnreadCounts((prev) => ({ ...prev, [room]: 0 }));
+
     fetch(`${BACKEND_URL}/api/messages?room=${room}`)
       .then((res) => res.json())
       .then((data) => {
         setMessages(data);
-        setRoomLoading(false); // 🌟 Turn off loading when data arrives
+        setRoomLoading(false);
       })
       .catch((err) => {
         console.error("Error loading chat history:", err);
         setRoomLoading(false);
       });
 
-    // Tell the existing socket connection to switch rooms
     socket.emit('join_room', room);
   }, [room, socket, user]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, typingUser]);
+
+  // Handle input changes with typing indicator emission
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setNewMessage(val);
+
+    if (!socket) return;
+
+    socket.emit('typing_start', { room, userName: user.displayName || user.email });
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit('typing_stop', { room });
+    }, 1500);
+  };
 
   const handleGoogleLogin = async () => {
     try {
@@ -106,12 +152,14 @@ export default function App() {
     e.preventDefault();
     if (!newMessage.trim() || !socket) return;
 
+    socket.emit('typing_stop', { room });
+
     const messageData = {
       text: newMessage,
       sender: user.displayName || user.email,
       senderUid: user.uid,
       avatar: user.photoURL,
-      room: room, // Attach current room to the payload
+      room: room,
       createdAt: new Date(),
     };
 
@@ -120,12 +168,11 @@ export default function App() {
   };
 
   if (loading) {
-    return (
-      <div className={styles.loader}>
-        <h3>Loading...</h3>
-      </div>
-    );
+    return <div className={styles.loader}><h3>Loading...</h3></div>;
   }
+
+  // Filter active users currently in the selected room
+  const currentRoomUsers = activeUsers.filter(u => u.room === room);
 
   return (
     <div className={styles.container}>
@@ -134,14 +181,7 @@ export default function App() {
           <div className={styles.loginCard}>
             <h1 className={styles.title}>Public Chat</h1>
             <p className={styles.subtitle}>Real-time public chat with google auth</p>
-            
             <button onClick={handleGoogleLogin} className={styles.googleBtn}>
-              <svg width="18" height="18" viewBox="0 0 24 24" style={{ display: 'block' }}>
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-              </svg>
               Continue with Google
             </button>
           </div>
@@ -156,41 +196,43 @@ export default function App() {
                 <span style={{ fontSize: '12px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>● Live Node Link</span>
               </div>
             </div>
-            <button onClick={() => signOut(auth)} className={styles.logoutBtn}>
-              Log Out
-            </button>
+            <button onClick={() => signOut(auth)} className={styles.logoutBtn}>Log Out</button>
           </header>
 
           <div className={styles.mainContent}>
-           <aside className={styles.sidebar}>
-              {/* Top Half: Online Users */}
+            <aside className={styles.sidebar}>
+              {/* Room Selection with Unread Badges */}
               <div className={styles.sidebarSection}>
-                <h4 className={styles.sidebarTitle}>Online Users ({activeUsers.length})</h4>
-                <div className={styles.userList}>
-                  {activeUsers.map((u) => (
-                    <div key={u.uid} className={styles.userItem}>
-                      <img src={u.avatar || 'https://placeholder.com'} alt="" className={styles.userAvatar} />
-                      <span className={styles.userName}>{u.name}</span>
-                      <div className={styles.statusDot} />
-                    </div>
+                <h4 className={styles.sidebarTitle}>Channels</h4>
+                <div className={styles.roomList}>
+                  {roomsList.map((channel) => (
+                    <button
+                      key={channel}
+                      onClick={() => setRoom(channel)}
+                      className={`${styles.roomBtn} ${room === channel ? styles.roomBtnActive : ''}`}
+                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                    >
+                      <span># {channel}</span>
+                      {unreadCounts[channel] > 0 && (
+                        <span className={styles.unreadBadge}>{unreadCounts[channel]}</span>
+                      )}
+                    </button>
                   ))}
                 </div>
               </div>
 
               <div className={styles.sidebarDivider} />
 
-              {/* Bottom Half: Room Selection */}
+              {/* Online Users in Current Room */}
               <div className={styles.sidebarSection}>
-                <h4 className={styles.sidebarTitle}>Channels</h4>
-                <div className={styles.roomList}>
-                  {['general', 'tech', 'random', 'gaming'].map((channel) => (
-                    <button
-                      key={channel}
-                      onClick={() => setRoom(channel)}
-                      className={`${styles.roomBtn} ${room === channel ? styles.roomBtnActive : ''}`}
-                    >
-                      # {channel}
-                    </button>
+                <h4 className={styles.sidebarTitle}>Online in #{room} ({currentRoomUsers.length})</h4>
+                <div className={styles.userList}>
+                  {currentRoomUsers.map((u) => (
+                    <div key={u.uid} className={styles.userItem}>
+                      <img src={u.avatar || 'https://placeholder.com'} alt="" className={styles.userAvatar} />
+                      <span className={styles.userName}>{u.name}</span>
+                      <div className={styles.statusDot} />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -201,32 +243,42 @@ export default function App() {
                 {roomLoading ? (
                   <div className={styles.roomLoaderContainer}>
                     <div className={styles.spinner} />
-                    <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '10px' }}>
-                      Switching to #{room}...
-                    </p>
+                    <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '10px' }}>Switching to #{room}...</p>
                   </div>
                 ) : (
-                  messages.map((msg, index) => {
-                    const isMe = msg.senderUid === user.uid;
-                    const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                  <>
+                    {messages.map((msg, index) => {
+                      const isMe = msg.senderUid === user.uid;
+                      const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
-                    return (
-                      <div key={msg._id || index} className={styles.messageRow} style={{ justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-                        <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
-                          {!isMe && <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />}
-                          <div>
-                            {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
-                            <div className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}>
-                              <span className={styles.messageText}>{msg.text}</span>
-                              <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>
-                                {timeString}
-                              </span>
+                      return (
+                        <div key={msg._id || index} className={styles.messageRow} style={{ justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+                          <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
+                            {!isMe && <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />}
+                            <div>
+                              {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
+                              <div className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}>
+                                <span className={styles.messageText}>{msg.text}</span>
+                                <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
+                      );
+                    })}
+
+                    {/* 🌟 WhatsApp Style Typing Bubble Animation */}
+                    {typingUser && (
+                      <div className={styles.typingIndicatorRow}>
+                        <div className={styles.typingBubble}>
+                          <span className={styles.dot}></span>
+                          <span className={styles.dot}></span>
+                          <span className={styles.dot}></span>
+                        </div>
+                        <span className={styles.typingText}>{typingUser} is typing...</span>
                       </div>
-                    );
-                  })
+                    )}
+                  </>
                 )}
                 <div ref={messagesEndRef} />
               </div>
@@ -235,14 +287,12 @@ export default function App() {
                 <input 
                   type="text" 
                   value={newMessage} 
-                  onChange={(e) => setNewMessage(e.target.value)} 
+                  onChange={handleInputChange} 
                   placeholder={roomLoading ? "Loading room..." : "Type a message..."}
-                  disabled={roomLoading} // 🌟 Disable typing while switching rooms
+                  disabled={roomLoading}
                   className={styles.chatInput} 
                 />
-                <button type="submit" disabled={roomLoading} className={styles.sendBtn}>
-                  Send
-                </button>
+                <button type="submit" disabled={roomLoading} className={styles.sendBtn}>Send</button>
               </form>
             </div>
           </div>
