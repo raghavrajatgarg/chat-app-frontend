@@ -71,21 +71,28 @@ const roomRef = useRef(room);
       // Clear previous listeners to avoid duplication
       newSocket.off('receive_message');
       
-      newSocket.on('receive_message', (message) => {
-        // Read directly from the live ref value
+     newSocket.on('receive_message', (message) => {
+        // Log to your browser console (F12) to verify incoming socket data
+        console.log("Incoming message received via socket:", message);
+
+        // Always use roomRef.current to get the absolute live room
         const activeRoom = roomRef.current;
 
-        // If message belongs to active room, display it
+        // If message belongs to the room you are currently looking at, append it
         if (message.room === activeRoom) {
           setMessages((prev) => [...prev, message]);
         } 
         
-        // If message is for a background room and sent by SOMEONE ELSE
+        // If message is for a DIFFERENT room and sent by someone else, increment badge
         if (message.room !== activeRoom && message.senderUid !== user.uid) {
-          setUnreadCounts((prev) => ({
-            ...prev,
-            [message.room]: (prev[message.room] || 0) + 1
-          }));
+          setUnreadCounts((prev) => {
+            const nextCount = (prev[message.room] || 0) + 1;
+            console.log(`Incrementing unread badge for #${message.room} to ${nextCount}`);
+            return {
+              ...prev,
+              [message.room]: nextCount
+            };
+          });
         }
       });
 
