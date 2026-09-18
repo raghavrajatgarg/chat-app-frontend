@@ -616,19 +616,24 @@
 }
 
 .optionsButton {
-  background: transparent;
+  background: transparent !important; /* Forces the background to stay transparent forever */
   border: none;
-  color: #9ca3af;
+  color: #ffffff; /* Pure white icon */
   cursor: pointer;
-  font-size: 14px;
-  padding: 0 6px;
-  transition: color 0.2s ease;
+  width: 28px;  /* Keeps a comfortable hitbox width */
+  height: 28px; /* Keeps a comfortable hitbox height */
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
 }
 
+/* Optional: Subtle color shift on hover so the user knows they are hovering it, without any background fill */
 .optionsButton:hover {
-  color: #ffffff;
+  background: transparent !important;
+  color: #93c5fd; /* Soft blue highlight on hover (or keep it #ffffff if you want no color change at all) */
 }
-
 .dropdownMenu {
   position: absolute;
   right: 0;
@@ -746,12 +751,12 @@
 
 .messageBubbleMe {
   background: #2563eb;
-  border-radius: 16px 16px 2px 16px;
+  border-radius: 8px 8px 2px 8px;
 }
 
 .messageBubbleOther {
   background: #1e293b;
-  border-radius: 16px 16px 16px 2px;
+  border-radius: 8px 8px 8px 2px;
 }
 
 .messageText {
