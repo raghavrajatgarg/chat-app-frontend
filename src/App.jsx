@@ -22,11 +22,16 @@ export default function App() {
   
   const typingTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
+  
 
   const roomsList = ['general', 'tech', 'random', 'gaming'];
 
   // 🌟 Add this ref to track the live room state inside socket listeners
-  const roomRef = useRef(room);
+const roomRef = useRef(room);
+  useEffect(() => { roomRef.current = room; }, [room]);
+
+  const unreadCountsRef = useRef(unreadCounts);
+  useEffect(() => { unreadCountsRef.current = unreadCounts; }, [unreadCounts]);
   useEffect(() => {
     roomRef.current = room;
   }, [room]);
@@ -64,7 +69,6 @@ export default function App() {
       });
 
       newSocket.on('receive_message', (message) => {
-        // Use roomRef.current to get the absolute latest active room
         const currentActiveRoom = roomRef.current;
 
         // If message belongs to current room, push to feed
@@ -75,12 +79,16 @@ export default function App() {
           return prev;
         });
 
-        // If message is for a background room, increment unread badge counter
+        // If message is for a background room, increment unread badge counter using the ref
         if (message.room !== currentActiveRoom && message.senderUid !== user.uid) {
-          setUnreadCounts((prev) => ({
-            ...prev,
-            [message.room]: (prev[message.room] || 0) + 1
-          }));
+          setUnreadCounts((prev) => {
+            const updated = {
+              ...prev,
+              [message.room]: (prev[message.room] || 0) + 1
+            };
+            unreadCountsRef.current = updated;
+            return updated;
+          });
         }
       });
 
@@ -105,14 +113,17 @@ export default function App() {
   }, [user]);
 
   // Handle room changes, history loading, and clearing unread badges for active room
-  useEffect(() => {
+ useEffect(() => {
     if (!user || !socket) return;
 
     setRoomLoading(true);
     setTypingUser(null);
 
-    // Clear unread badge for the newly selected room
-    setUnreadCounts((prev) => ({ ...prev, [room]: 0 }));
+    // 🌟 Clear unread badge for the newly selected room safely
+    setUnreadCounts((prev) => ({
+      ...prev,
+      [room]: 0
+    }));
 
     fetch(`${BACKEND_URL}/api/messages?room=${room}`)
       .then((res) => res.json())
