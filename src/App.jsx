@@ -27,33 +27,44 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
- // 1. Establish the socket connection ONCE when the user logs in
+ // Establish the socket connection once the user and their token are ready
   useEffect(() => {
     if (!user) return;
 
-    const newSocket = io(BACKEND_URL, { autoConnect: true });
-    setSocket(newSocket);
-    
-    newSocket.emit('user_connected', {
-      uid: user.uid,
-      name: user.displayName,
-      avatar: user.photoURL
-    });
+    let isMounted = true;
 
-    newSocket.on('active_users_list', (users) => {
-      const uniqueUsers = Array.from(new Map(users.map(u => [u.uid, u])).values());
-      setActiveUsers(uniqueUsers);
-    });
+    user.getIdToken().then((token) => {
+      if (!isMounted) return;
 
-    newSocket.on('receive_message', (message) => {
-      setMessages((prev) => [...prev, message]);
+      const newSocket = io(BACKEND_URL, { 
+        autoConnect: true,
+        auth: { token } // Passes the Firebase token to satisfy server.js io.use()
+      });
+      setSocket(newSocket);
+      
+      newSocket.emit('user_connected', {
+        uid: user.uid,
+        name: user.displayName,
+        avatar: user.photoURL
+      });
+
+      newSocket.on('active_users_list', (users) => {
+        const uniqueUsers = Array.from(new Map(users.map(u => [u.uid, u])).values());
+        setActiveUsers(uniqueUsers);
+      });
+
+      newSocket.on('receive_message', (message) => {
+        setMessages((prev) => [...prev, message]);
+      });
+    }).catch((err) => {
+      console.error("Token fetch error for socket:", err);
     });
 
     return () => {
-      newSocket.disconnect();
+      isMounted = false;
+      if (socket) socket.disconnect();
     };
-  }, [user]); // Only depends on user authentication state now!
-
+  }, [user]);
   // 2. Fetch history and tell socket to join the room whenever the 'room' state changes
   useEffect(() => {
     if (!user || !socket) return;
