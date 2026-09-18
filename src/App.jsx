@@ -268,7 +268,7 @@ export default function App() {
                   </div>
                 ) : (
                   <>
-                    {messages.map((msg, index) => {
+                   {messages.map((msg, index) => {
   const messageKey = msg._id || index;
   const isMe = msg.senderUid === user.uid;
   const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
@@ -282,42 +282,48 @@ export default function App() {
         <div>
           {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
           
-          {/* Track mouse enter and leave on the message wrapper */}
           <div 
             className={styles.messageWrapper}
             onMouseEnter={() => setHoveredMessageId(messageKey)}
             onMouseLeave={() => setHoveredMessageId(null)}
           >
+            {/* Added relative positioning wrapper for the bubble content */}
             <div className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}>
               <span className={styles.messageText}>{msg.text}</span>
               <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
+
+              {/* Chevron Trigger Button Positioned Inside Top Right */}
+              {isMe && msg._id && (isHovered || isDropdownOpen) && (
+                <div className={styles.messageActionTrigger}>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveDropdownId(isDropdownOpen ? null : messageKey);
+                    }}
+                    className={styles.optionsButton}
+                    title="Message options"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </button>
+
+                  {isDropdownOpen && (
+                    <div className={styles.dropdownMenu}>
+                      <button 
+                        onClick={() => {
+                          setActiveDropdownId(null);
+                          setDeleteModalMessageId(messageKey);
+                        }}
+                        className={styles.dropdownItemDelete}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-
-            {/* Show button when hovered OR when dropdown menu is toggled open */}
-            {isMe && msg._id && (isHovered || isDropdownOpen) && (
-              <div className={styles.messageActionTrigger} style={{ [isMe ? 'left' : 'right']: '-24px' }}>
-                <button 
-                  onClick={() => setActiveDropdownId(isDropdownOpen ? null : messageKey)}
-                  className={styles.optionsButton}
-                >
-                  ▼
-                </button>
-
-                {isDropdownOpen && (
-                  <div className={styles.dropdownMenu}>
-                    <button 
-                      onClick={() => {
-                        setActiveDropdownId(null);
-                        setDeleteModalMessageId(messageKey);
-                      }}
-                      className={styles.dropdownItemDelete}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>
