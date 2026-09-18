@@ -293,24 +293,36 @@ socket.on('message_deleted', (deletedId) => {
                 ) : (
                   <>
                     {messages.map((msg, index) => {
-                      const isMe = msg.senderUid === user.uid;
-                      const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+  const isMe = msg.senderUid === user.uid;
+  const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
 
-                      return (
-                        <div key={msg._id || index} className={styles.messageRow} style={{ justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-                          <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
-                            {!isMe && <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />}
-                            <div>
-                              {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
-                              <div className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}>
-                                <span className={styles.messageText}>{msg.text}</span>
-                                <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+  return (
+    <div key={msg._id || index} className={styles.messageRow} style={{ justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+      <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
+        {!isMe && <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />}
+        <div>
+          {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
+          <div className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}>
+            <span className={styles.messageText}>{msg.text}</span>
+            <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
+          </div>
+
+          {/* 🌟 Edit & Delete Action Buttons (Only for your own messages) */}
+          {isMe && msg._id && (
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px', fontSize: '11px' }}>
+              <button 
+                onClick={() => handleDelete(msg._id)} 
+                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+})}
 
                     {/* 🌟 WhatsApp Style Typing Bubble Animation */}
                     {typingUser && (
