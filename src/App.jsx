@@ -64,16 +64,19 @@ export default function App() {
       });
 
       newSocket.on('receive_message', (message) => {
+        // Use roomRef.current to get the absolute latest active room
+        const currentActiveRoom = roomRef.current;
+
         // If message belongs to current room, push to feed
         setMessages((prev) => {
-          if (message.room === room) {
+          if (message.room === currentActiveRoom) {
             return [...prev, message];
           }
           return prev;
         });
 
         // If message is for a background room, increment unread badge counter
-        if (message.room !== room && message.senderUid !== user.uid) {
+        if (message.room !== currentActiveRoom && message.senderUid !== user.uid) {
           setUnreadCounts((prev) => ({
             ...prev,
             [message.room]: (prev[message.room] || 0) + 1
