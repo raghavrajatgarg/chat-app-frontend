@@ -15,26 +15,22 @@ export default function App() {
   const [socket, setSocket] = useState(null);
   const [room, setRoom] = useState('general');
   const [roomLoading, setRoomLoading] = useState(false);
-  
-  // 🌟 New features state
+  const [activeDropdownId, setActiveDropdownId] = useState(null);
+  const [deleteModalMessageId, setDeleteModalMessageId] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [typingUser, setTypingUser] = useState(null);
   const [unreadCounts, setUnreadCounts] = useState({ general: 0, tech: 0, random: 0, gaming: 0 });
   
   const typingTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
-  
-
   const roomsList = ['general', 'tech', 'random', 'gaming'];
 
-  // 🌟 Add this ref to track the live room state inside socket listeners
-const roomRef = useRef(room);
+  const roomRef = useRef(room);
   useEffect(() => { roomRef.current = room; }, [room]);
 
   const unreadCountsRef = useRef(unreadCounts);
   useEffect(() => { unreadCountsRef.current = unreadCounts; }, [unreadCounts]);
-  useEffect(() => {
-    roomRef.current = room;
-  }, [room]);
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -43,7 +39,7 @@ const roomRef = useRef(room);
     return () => unsubscribe();
   }, []);
 
- // Establish socket connection with token authentication and live room tracking
+  // Establish socket connection with token authentication and live room tracking
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
@@ -73,7 +69,6 @@ const roomRef = useRef(room);
       newSocket.off('message_updated');
       newSocket.off('message_deleted');
       
-      // ✅ CORRECT: Use newSocket consistently here
       newSocket.on('message_updated', (updatedMsg) => {
         setMessages((prev) => 
           prev.map((msg) => (msg._id === updatedMsg._id ? updatedMsg : msg))
@@ -122,8 +117,8 @@ const roomRef = useRef(room);
       if (socket) socket.disconnect();
     };
   }, [user]);
-  // Handle room changes, history loading, and clearing unread badges for active room
-// Handle room changes, history loading, and joining socket room
+
+  // Handle room changes, history loading, and joining socket room
   useEffect(() => {
     if (!user) return;
 
@@ -146,7 +141,6 @@ const roomRef = useRef(room);
         setRoomLoading(false);
       });
 
-    // If the socket is already connected, emit join room immediately
     if (socket) {
       console.log(`Emitting join_room for: ${room}`);
       socket.emit('join_room', room);
@@ -157,7 +151,6 @@ const roomRef = useRef(room);
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, typingUser]);
 
-  // Handle input changes with typing indicator emission
   const handleInputChange = (e) => {
     const val = e.target.value;
     setNewMessage(val);
@@ -203,12 +196,7 @@ const roomRef = useRef(room);
   if (loading) {
     return <div className={styles.loader}><h3>Loading...</h3></div>;
   }
-  const handleDelete = (messageId) => {
-    if (!socket) return;
-    // Emit delete event over socket instead of fetch
-    socket.emit('delete_message', { messageId, userId: user.uid });
-  };
-  // Filter active users currently in the selected room
+
   const currentRoomUsers = activeUsers.filter(u => u.room === room);
 
   return (
@@ -226,11 +214,11 @@ const roomRef = useRef(room);
       ) : (
         <div className={styles.chatWrapper}>
           <header className={styles.header}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div className={styles.headerLeft}>
               <img src={user.photoURL} alt="Profile" className={styles.profileImg} />
               <div>
-                <strong style={{ display: 'block', color: '#fff' }}>{user.displayName}</strong>
-                <span style={{ fontSize: '12px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>● Live Node Link</span>
+                <strong className={styles.headerUserName}>{user.displayName}</strong>
+                <span className={styles.liveIndicator}>● Live Node Link</span>
               </div>
             </div>
             <button onClick={() => signOut(auth)} className={styles.logoutBtn}>Log Out</button>
@@ -238,7 +226,6 @@ const roomRef = useRef(room);
 
           <div className={styles.mainContent}>
             <aside className={styles.sidebar}>
-              {/* Room Selection with Unread Badges */}
               <div className={styles.sidebarSection}>
                 <h4 className={styles.sidebarTitle}>Channels</h4>
                 <div className={styles.roomList}>
@@ -247,7 +234,6 @@ const roomRef = useRef(room);
                       key={channel}
                       onClick={() => setRoom(channel)}
                       className={`${styles.roomBtn} ${room === channel ? styles.roomBtnActive : ''}`}
-                      style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                     >
                       <span># {channel}</span>
                       {unreadCounts[channel] > 0 && (
@@ -260,7 +246,6 @@ const roomRef = useRef(room);
 
               <div className={styles.sidebarDivider} />
 
-              {/* Online Users in Current Room */}
               <div className={styles.sidebarSection}>
                 <h4 className={styles.sidebarTitle}>Online in #{room} ({currentRoomUsers.length})</h4>
                 <div className={styles.userList}>
@@ -280,43 +265,62 @@ const roomRef = useRef(room);
                 {roomLoading ? (
                   <div className={styles.roomLoaderContainer}>
                     <div className={styles.spinner} />
-                    <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '10px' }}>Switching to #{room}...</p>
+                    <p className={styles.modalDescription} style={{ marginTop: '10px' }}>Switching to #{room}...</p>
                   </div>
                 ) : (
                   <>
                     {messages.map((msg, index) => {
-  const isMe = msg.senderUid === user.uid;
-  const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                      const messageKey = msg._id || index;
+                      const isMe = msg.senderUid === user.uid;
+                      const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                      const isDropdownOpen = activeDropdownId === messageKey;
 
-  return (
-    <div key={msg._id || index} className={styles.messageRow} style={{ justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-      <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
-        {!isMe && <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />}
-        <div>
-          {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
-          <div className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}>
-            <span className={styles.messageText}>{msg.text}</span>
-            <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
-          </div>
+                      return (
+                        <div key={messageKey} className={styles.messageRow} style={{ justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+                          <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
+                            {!isMe && <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />}
+                            <div>
+                              {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
+                              
+                              {/* WhatsApp style hover container */}
+                              <div className={styles.messageWrapper}>
+                                <div className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}>
+                                  <span className={styles.messageText}>{msg.text}</span>
+                                  <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
+                                </div>
 
-          {/* 🌟 Edit & Delete Action Buttons (Only for your own messages) */}
-          {isMe && msg._id && (
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px', fontSize: '11px' }}>
-              <button 
-                onClick={() => handleDelete(msg._id)} 
-                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}
-              >
-                Delete
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-})}
+                                {/* Hover Dropdown Trigger Button (Only for own messages with valid id) */}
+                                {isMe && msg._id && (
+                                  <div className={styles.messageActionTrigger} style={{ position: 'absolute', [isMe ? 'left' : 'right']: '-24px', top: '4px' }}>
+                                    <button 
+                                      onClick={() => setActiveDropdownId(isDropdownOpen ? null : messageKey)}
+                                      className={styles.optionsButton}
+                                    >
+                                      ▼
+                                    </button>
 
-                    {/* 🌟 WhatsApp Style Typing Bubble Animation */}
+                                    {isDropdownOpen && (
+                                      <div className={styles.dropdownMenu}>
+                                        <button 
+                                          onClick={() => {
+                                            setActiveDropdownId(null);
+                                            setDeleteModalMessageId(messageKey);
+                                          }}
+                                          className={styles.dropdownItemDelete}
+                                        >
+                                          Delete
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
                     {typingUser && (
                       <div className={styles.typingIndicatorRow}>
                         <div className={styles.typingBubble}>
@@ -344,6 +348,47 @@ const roomRef = useRef(room);
                 <button type="submit" disabled={roomLoading} className={styles.sendBtn}>Send</button>
               </form>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Deletion Confirmation & Loading Modal */}
+      {deleteModalMessageId && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalCard}>
+            <h3 className={styles.modalTitle}>Delete message?</h3>
+            <p className={styles.modalDescription}>This message will be permanently deleted.</p>
+            
+            {isDeleting ? (
+              <div className={styles.modalLoadingWrapper}>
+                <div className={styles.spinner} />
+                <span>Deleting...</span>
+              </div>
+            ) : (
+              <div className={styles.modalActions}>
+                <button 
+                  onClick={() => setDeleteModalMessageId(null)}
+                  className={styles.modalCancelBtn}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => {
+                    setIsDeleting(true);
+                    if (socket) {
+                      socket.emit('delete_message', { messageId: deleteModalMessageId, userId: user.uid });
+                    }
+                    setTimeout(() => {
+                      setIsDeleting(false);
+                      setDeleteModalMessageId(null);
+                    }, 500);
+                  }}
+                  className={styles.modalDeleteBtn}
+                >
+                  Delete
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
