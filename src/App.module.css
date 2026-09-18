@@ -730,3 +730,105 @@
 .dropdownItemDelete:hover {
   background: #374151;
 }
+.messageBubbleBase {
+  color: #fff;
+  padding: 8px 12px;
+  /* Give breathing room so text doesn't flow under the top chevron or bottom timestamp */
+  padding-right: 32px; 
+  padding-bottom: 20px; 
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+  word-break: break-word;
+  font-size: 15px;
+  line-height: 1.4;
+  position: relative; /* Crucial for absolute positioning inside the bubble */
+  display: inline-block;
+}
+
+.messageBubbleMe {
+  background: #2563eb;
+  border-radius: 16px 16px 2px 16px;
+}
+
+.messageBubbleOther {
+  background: #1e293b;
+  border-radius: 16px 16px 16px 2px;
+}
+
+.messageText {
+  display: inline;
+}
+
+/* Locked to the bottom-right corner */
+.messageTimestampMe {
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  font-size: 10px;
+  color: #bfdbfe;
+  user-select: none;
+}
+
+.messageTimestampOther {
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  font-size: 10px;
+  color: #94a3b8;
+  user-select: none;
+}
+
+/* Locked to the top-right corner */
+.messageActionTrigger {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+}
+
+.optionsButton {
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  color: #cbd5e1;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+
+.optionsButton:hover {
+  background: rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+}
+
+.dropdownMenu {
+  position: absolute;
+  right: 0;
+  top: 24px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  overflow: hidden;
+  min-width: 100px;
+}
+
+.dropdownItemDelete {
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: #f87171;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.dropdownItemDelete:hover {
+  background: #374151;
+}
