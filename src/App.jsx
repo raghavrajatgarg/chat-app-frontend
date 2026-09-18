@@ -20,7 +20,7 @@ export default function App() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [typingUser, setTypingUser] = useState(null);
   const [unreadCounts, setUnreadCounts] = useState({ general: 0, tech: 0, random: 0, gaming: 0 });
-  
+  const [hoveredMessageId, setHoveredMessageId] = useState(null);
   const typingTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
   const roomsList = ['general', 'tech', 'random', 'gaming'];
@@ -270,56 +270,61 @@ export default function App() {
                 ) : (
                   <>
                     {messages.map((msg, index) => {
-                      const messageKey = msg._id || index;
-                      const isMe = msg.senderUid === user.uid;
-                      const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-                      const isDropdownOpen = activeDropdownId === messageKey;
+  const messageKey = msg._id || index;
+  const isMe = msg.senderUid === user.uid;
+  const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+  const isDropdownOpen = activeDropdownId === messageKey;
+  const isHovered = hoveredMessageId === messageKey;
 
-                      return (
-                        <div key={messageKey} className={styles.messageRow} style={{ justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-                          <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
-                            {!isMe && <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />}
-                            <div>
-                              {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
-                              
-                              {/* WhatsApp style hover container */}
-                              <div className={styles.messageWrapper}>
-                                <div className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}>
-                                  <span className={styles.messageText}>{msg.text}</span>
-                                  <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
-                                </div>
+  return (
+    <div key={messageKey} className={styles.messageRow} style={{ justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+      <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
+        {!isMe && <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />}
+        <div>
+          {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
+          
+          {/* Track mouse enter and leave on the message wrapper */}
+          <div 
+            className={styles.messageWrapper}
+            onMouseEnter={() => setHoveredMessageId(messageKey)}
+            onMouseLeave={() => setHoveredMessageId(null)}
+          >
+            <div className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}>
+              <span className={styles.messageText}>{msg.text}</span>
+              <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
+            </div>
 
-                                {/* Hover Dropdown Trigger Button (Only for own messages with valid id) */}
-                                {isMe && msg._id && (
-                                  <div className={styles.messageActionTrigger} style={{ position: 'absolute', [isMe ? 'left' : 'right']: '-24px', top: '4px' }}>
-                                    <button 
-                                      onClick={() => setActiveDropdownId(isDropdownOpen ? null : messageKey)}
-                                      className={styles.optionsButton}
-                                    >
-                                      ▼
-                                    </button>
+            {/* Show button when hovered OR when dropdown menu is toggled open */}
+            {isMe && msg._id && (isHovered || isDropdownOpen) && (
+              <div className={styles.messageActionTrigger} style={{ [isMe ? 'left' : 'right']: '-24px' }}>
+                <button 
+                  onClick={() => setActiveDropdownId(isDropdownOpen ? null : messageKey)}
+                  className={styles.optionsButton}
+                >
+                  ▼
+                </button>
 
-                                    {isDropdownOpen && (
-                                      <div className={styles.dropdownMenu}>
-                                        <button 
-                                          onClick={() => {
-                                            setActiveDropdownId(null);
-                                            setDeleteModalMessageId(messageKey);
-                                          }}
-                                          className={styles.dropdownItemDelete}
-                                        >
-                                          Delete
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                {isDropdownOpen && (
+                  <div className={styles.dropdownMenu}>
+                    <button 
+                      onClick={() => {
+                        setActiveDropdownId(null);
+                        setDeleteModalMessageId(messageKey);
+                      }}
+                      className={styles.dropdownItemDelete}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+})}
 
                     {typingUser && (
                       <div className={styles.typingIndicatorRow}>
