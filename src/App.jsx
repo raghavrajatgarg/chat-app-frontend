@@ -116,13 +116,13 @@ const roomRef = useRef(room);
     };
   }, [user]);
   // Handle room changes, history loading, and clearing unread badges for active room
- useEffect(() => {
-    if (!user || !socket) return;
+// Handle room changes, history loading, and joining socket room
+  useEffect(() => {
+    if (!user) return;
 
     setRoomLoading(true);
     setTypingUser(null);
 
-    // 🌟 Clear unread badge for the newly selected room safely
     setUnreadCounts((prev) => ({
       ...prev,
       [room]: 0
@@ -139,7 +139,11 @@ const roomRef = useRef(room);
         setRoomLoading(false);
       });
 
-    socket.emit('join_room', room);
+    // If the socket is already connected, emit join room immediately
+    if (socket) {
+      console.log(`Emitting join_room for: ${room}`);
+      socket.emit('join_room', room);
+    }
   }, [room, socket, user]);
 
   useEffect(() => {
