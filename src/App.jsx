@@ -43,7 +43,7 @@ const roomRef = useRef(room);
     return () => unsubscribe();
   }, []);
 
-  // Establish socket connection with token authentication
+ // Establish socket connection with token authentication and live room tracking
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
@@ -68,38 +68,35 @@ const roomRef = useRef(room);
         setActiveUsers(uniqueUsers);
       });
 
+      // Clear previous listeners to avoid duplication
+      newSocket.off('receive_message');
+      
       newSocket.on('receive_message', (message) => {
-        const currentActiveRoom = roomRef.current;
+        // Read directly from the live ref value
+        const activeRoom = roomRef.current;
 
-        // If message belongs to current room, push to feed
-        setMessages((prev) => {
-          if (message.room === currentActiveRoom) {
-            return [...prev, message];
-          }
-          return prev;
-        });
-
-        // If message is for a background room, increment unread badge counter using the ref
-        if (message.room !== currentActiveRoom && message.senderUid !== user.uid) {
-          setUnreadCounts((prev) => {
-            const updated = {
-              ...prev,
-              [message.room]: (prev[message.room] || 0) + 1
-            };
-            unreadCountsRef.current = updated;
-            return updated;
-          });
+        // If message belongs to active room, display it
+        if (message.room === activeRoom) {
+          setMessages((prev) => [...prev, message]);
+        } 
+        
+        // If message is for a background room and sent by SOMEONE ELSE
+        if (message.room !== activeRoom && message.senderUid !== user.uid) {
+          setUnreadCounts((prev) => ({
+            ...prev,
+            [message.room]: (prev[message.room] || 0) + 1
+          }));
         }
       });
 
       newSocket.on('display_typing', ({ userName, room: typingRoom }) => {
-        if (typingRoom === room) {
+        if (typingRoom === roomRef.current) {
           setTypingUser(userName);
         }
       });
 
       newSocket.on('hide_typing', ({ room: typingRoom }) => {
-        if (typingRoom === room) {
+        if (typingRoom === roomRef.current) {
           setTypingUser(null);
         }
       });
@@ -111,7 +108,6 @@ const roomRef = useRef(room);
       if (socket) socket.disconnect();
     };
   }, [user]);
-
   // Handle room changes, history loading, and clearing unread badges for active room
  useEffect(() => {
     if (!user || !socket) return;
