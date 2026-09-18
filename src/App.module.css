@@ -858,12 +858,12 @@
 
 .messageBubbleMe {
   background: #2563eb;
-  border-radius: 16px 16px 2px 16px;
+  border-radius: 8px 8px 2px 8px;
 }
 
 .messageBubbleOther {
   background: #1e293b;
-  border-radius: 16px 16px 16px 2px;
+  border-radius: 8px 8px 8px 2px;
 }
 
 /* Grouping text and timestamp so the timestamp aligns neatly on the bottom right */
