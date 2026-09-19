@@ -25,73 +25,112 @@ export default function App() {
   const messagesEndRef = useRef(null);
   const roomsList = ['general', 'tech', 'random', 'gaming'];
   const [openMenuId, setOpenMenuId] = useState(null);
-  const [chatType, setChatType] = useState('channel'); // 'channel' or 'dm'
-  const [selectedUser, setSelectedUser] = useState(null); // The user object you are DMing
+  const [chatType, setChatType] = useState('channel'); 
+  const [selectedUser, setSelectedUser] = useState(null); 
   const currentRoom = chatType === 'channel' 
     ? room 
     : getPrivateRoomId(user.uid, selectedUser?.uid);
   const roomRef = useRef(room);
+  
+  // Mobile UI States
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const touchStartRef = useRef({ x: 0, y: 0 });
   const [showScrollBtn, setShowScrollBtn] = useState(false);
-  const feedRef = useRef(null); // Attach this ref to your .messageFeed div
-
-const handleFeedScroll = (e) => {
-  const { scrollTop, scrollHeight, clientHeight } = e.target;
-  // If the user has scrolled up by more than 300px from the bottom, show the button
-  const isScrolledUp = scrollHeight - scrollTop - clientHeight > 300;
-  setShowScrollBtn(isScrolledUp);
-};
-
-const scrollToBottom = () => {
-  messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-};
-
-
-const handleTouchStart = (e) => {
-  const touch = e.touches[0];
-  // Track where the user first placed their finger
-  touchStartRef.current = { x: touch.clientX, y: touch.clientY };
-};
-
-const handleTouchEnd = (e) => {
-  const touch = e.changedTouches[0];
-  const startX = touchStartRef.current.x;
-  const startY = touchStartRef.current.y;
+  const feedRef = useRef(null); 
   
-  const diffX = touch.clientX - startX;
-  const diffY = touch.clientY - startY;
+  // Image Feature States
+  const [selectedImage, setSelectedImage] = useState(null); 
+  const fileInputRef = useRef(null);
 
-  // 1. Core Rule: Ensure it's mostly a horizontal swipe, not a vertical scroll
-  if (Math.abs(diffX) > Math.abs(diffY)) {
-    
-    // CASE A: Sidebar is closed -> Detect swipe right from the LEFT EDGE to OPEN
-    if (!isMobileMenuOpen) {
-      const edgeZone = 40; // 40px hit area from the left edge of the screen
-      const minSwipeDistance = 50; // Minimum pixels to travel to count as a swipe
-      
-      if (startX <= edgeZone && diffX > minSwipeDistance) {
-        setIsMobileMenuOpen(true);
+  // Converts file uploads into usable Base64 text strings
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setSelectedImage(reader.result); 
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Handle clipboard copy-paste events directly on the input field
+  const handlePaste = (e) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf('image') !== -1) {
+        const file = items[i].getAsFile();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setSelectedImage(reader.result);
+        };
+        reader.readAsDataURL(file);
       }
     }
+  };
+
+  const handleFeedScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    const isScrolledUp = scrollHeight - scrollTop - clientHeight > 300;
+    setShowScrollBtn(isScrolledUp);
+  };
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleTouchStart = (e) => {
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  // Crucial: Intercept active horizontal swipes from the edge to block default page-back actions
+  const handleTouchMove = (e) => {
+    const touch = e.touches[0];
+    const startX = touchStartRef.current.x;
+    const startY = touchStartRef.current.y;
     
-    // CASE B: Sidebar is open -> Detect swipe left ANYWHERE to CLOSE
-    else if (isMobileMenuOpen) {
-      const minSwipeDistance = 50;
-      
-      if (diffX < -minSwipeDistance) {
-        setIsMobileMenuOpen(false);
+    const diffX = touch.clientX - startX;
+    const diffY = touch.clientY - startY;
+
+    if (startX <= 40 && diffX > 0 && Math.abs(diffX) > Math.abs(diffY)) {
+      if (e.cancelable) {
+        e.preventDefault();
       }
     }
-  }
-};
+  };
 
+  const handleTouchEnd = (e) => {
+    const touch = e.changedTouches[0];
+    const startX = touchStartRef.current.x;
+    const startY = touchStartRef.current.y;
+    
+    const diffX = touch.clientX - startX;
+    const diffY = touch.clientY - startY;
 
-  // Helper to change room and auto-close sidebar on mobile
+    if (Math.abs(diffX) > Math.abs(diffY)) {
+      if (!isMobileMenuOpen) {
+        const edgeZone = 40; 
+        const minSwipeDistance = 50; 
+        
+        if (startX <= edgeZone && diffX > minSwipeDistance) {
+          setIsMobileMenuOpen(true);
+        }
+      }
+      else if (isMobileMenuOpen) {
+        const minSwipeDistance = 50;
+        if (diffX < -minSwipeDistance) {
+          setIsMobileMenuOpen(false);
+        }
+      }
+    }
+  };
+
   const handleSelectRoom = (selectedRoom) => {
     setRoom(selectedRoom);
-    setIsMobileMenuOpen(false); // Closes sidebar automatically on mobile selection
+    setIsMobileMenuOpen(false); 
   };
+  
   useEffect(() => { roomRef.current = room; }, [room]);
 
   const unreadCountsRef = useRef(unreadCounts);
@@ -105,7 +144,6 @@ const handleTouchEnd = (e) => {
     return () => unsubscribe();
   }, []);
 
-  // Establish socket connection with token authentication and live room tracking
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
@@ -131,7 +169,6 @@ const handleTouchEnd = (e) => {
         setActiveUsers(uniqueUsers);
       });
 
-      // Clear previous listeners to avoid duplication
       newSocket.off('receive_message');
       newSocket.off('message_updated');
       newSocket.off('message_deleted');
@@ -147,20 +184,14 @@ const handleTouchEnd = (e) => {
       });
       
       newSocket.on('receive_message', (message) => {
-        console.log("Incoming message received via socket:", message);
         const activeRoom = roomRef.current;
-
         if (message.room === activeRoom) {
           setMessages((prev) => [...prev, message]);
         } 
-        
         if (message.room !== activeRoom && message.senderUid !== user.uid) {
           setUnreadCounts((prev) => {
             const nextCount = (prev[message.room] || 0) + 1;
-            return {
-              ...prev,
-              [message.room]: nextCount
-            };
+            return { ...prev, [message.room]: nextCount };
           });
         }
       });
@@ -184,20 +215,17 @@ const handleTouchEnd = (e) => {
       if (socket) socket.disconnect();
     };
   }, [user]);
-const getPrivateRoomId = (uid1, uid2) => {
-  return [uid1, uid2].sort().join('_');
-};
-  // Handle room changes, history loading, and joining socket room
+
+  function getPrivateRoomId(uid1, uid2) {
+    return [uid1, uid2].sort().join('_');
+  }
+
   useEffect(() => {
     if (!user) return;
-
     setRoomLoading(true);
     setTypingUser(null);
 
-    setUnreadCounts((prev) => ({
-      ...prev,
-      [room]: 0
-    }));
+    setUnreadCounts((prev) => ({ ...prev, [room]: 0 }));
 
     fetch(`${BACKEND_URL}/api/messages?room=${room}`)
       .then((res) => res.json())
@@ -211,7 +239,6 @@ const getPrivateRoomId = (uid1, uid2) => {
       });
 
     if (socket) {
-      console.log(`Emitting join_room for: ${room}`);
       socket.emit('join_room', room);
     }
   }, [room, socket, user]);
@@ -225,11 +252,9 @@ const getPrivateRoomId = (uid1, uid2) => {
     setNewMessage(val);
 
     if (!socket) return;
-
     socket.emit('typing_start', { room, userName: user.displayName || user.email });
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-
     typingTimeoutRef.current = setTimeout(() => {
       socket.emit('typing_stop', { room });
     }, 1500);
@@ -245,7 +270,7 @@ const getPrivateRoomId = (uid1, uid2) => {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !socket) return;
+    if ((!newMessage.trim() && !selectedImage) || !socket) return;
 
     socket.emit('typing_stop', { room });
 
@@ -253,6 +278,7 @@ const getPrivateRoomId = (uid1, uid2) => {
       text: newMessage,
       sender: user.displayName || user.email,
       senderUid: user.uid,
+      image: selectedImage, 
       avatar: user.photoURL,
       room: room,
       createdAt: new Date(),
@@ -260,18 +286,22 @@ const getPrivateRoomId = (uid1, uid2) => {
 
     socket.emit('send_message', messageData);
     setNewMessage('');
+    setSelectedImage(null); 
   };
 
   if (loading) {
     return <div className={styles.loader}><h3>Loading...</h3></div>;
   }
 
-  const currentRoomUsers = activeUsers
+  const currentRoomUsers = activeUsers;
 
   return (
-    <div className={styles.container}
-         onTouchStart={handleTouchStart}
-         onTouchEnd={handleTouchEnd}    >
+    <div 
+      className={styles.container}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}    
+    >
       {!user ? (
         <div className={styles.loginContainer}>
           <div className={styles.loginCard}>
@@ -286,33 +316,30 @@ const getPrivateRoomId = (uid1, uid2) => {
         <div className={styles.chatWrapper}>
           <header className={styles.header}>
             <button 
-  className={styles.hamburgerButton} 
-  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-  aria-label="Toggle navigation menu"
->
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-list" viewBox="0 0 16 16">
-  <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/>
-</svg>  
-</button>
-  <div className={styles.headerLeft}>
-    {/* Hamburger / Sandwich Icon Button */}
+              className={styles.hamburgerButton} 
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label="Toggle navigation menu"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path fillRule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/>
+              </svg>  
+            </button>
+            <div className={styles.headerLeft}>
+              <img src={user.photoURL} alt="Profile" className={styles.profileImg} />
+              <div className={styles.headerUserInfo}>
+                <span className={styles.headerUserName}>{user.displayName}</span>
+                <span className={styles.liveIndicator}>● Live Node Link</span>
+              </div>
+            </div>
+            <button onClick={() => signOut(auth)} className={styles.logoutBtn}>Log Out</button>
+          </header>
 
-    <img src={user.photoURL} alt="Profile" className={styles.profileImg} />
-    <div className={styles.headerUserInfo}>
-      <span className={styles.headerUserName}>{user.displayName}</span>
-      <span className={styles.liveIndicator}>● Live Node Link</span>
-    </div>
-  </div>
-  <button onClick={() => signOut(auth)} className={styles.logoutBtn}>Log Out</button>
-</header>
-            <div className={styles.mainContent}>
-            {/* 🌟 Dark overlay backdrop for mobile */}
+          <div className={styles.mainContent}>
             <div 
               className={`${styles.backdrop} ${isMobileMenuOpen ? styles.backdropVisible : ''}`} 
               onClick={() => setIsMobileMenuOpen(false)} 
             />
 
-            {/* 🌟 Dynamic sidebar classes for sliding animation */}
             <aside className={`${styles.sidebar} ${isMobileMenuOpen ? styles.sidebarOpen : ''}`}>
               <div className={styles.sidebarSection}>
                 <h4 className={styles.sidebarTitle}>Channels</h4>
@@ -320,7 +347,7 @@ const getPrivateRoomId = (uid1, uid2) => {
                   {roomsList.map((channel) => (
                     <button
                       key={channel}
-                      onClick={() => handleSelectRoom(channel)} // Use handleSelectRoom to auto-close on mobile
+                      onClick={() => handleSelectRoom(channel)}
                       className={`${styles.roomBtn} ${room === channel ? styles.roomBtnActive : ''}`}
                     >
                       <span># {channel}</span>
@@ -331,8 +358,6 @@ const getPrivateRoomId = (uid1, uid2) => {
                   ))}
                 </div>
               </div>
-
-              <div className={styles.sidebarDivider} />
 
               <div className={styles.sidebarSection}>
                 <h4 className={styles.sidebarTitle}>Online users</h4>
@@ -349,10 +374,7 @@ const getPrivateRoomId = (uid1, uid2) => {
             </aside>
 
             <div className={styles.chatWindow}>
-              <div className={styles.messageFeed}
-                ref={feedRef} 
-                  onScroll={handleFeedScroll}
->
+              <div className={styles.messageFeed} ref={feedRef} onScroll={handleFeedScroll}>
                 {roomLoading ? (
                   <div className={styles.roomLoaderContainer}>
                     <div className={styles.spinner} />
@@ -360,59 +382,64 @@ const getPrivateRoomId = (uid1, uid2) => {
                   </div>
                 ) : (
                   <>
-                   {messages.map((msg, index) => {
-  const isMe = msg.senderUid === user.uid;
-  const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-  const isMenuOpen = openMenuId === msg._id;
+                    {messages.map((msg, index) => {
+                      const isMe = msg.senderUid === user.uid;
+                      const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                      const isMenuOpen = openMenuId === msg._id;
 
-  return (
-    <div key={msg._id || index} className={styles.messageRow} style={{ justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-      <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
-        {!isMe && <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />}
-        <div>
-          {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
-          <div className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}>
-            <span className={styles.messageText}>{msg.text}</span>
-            <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
+                      return (
+                        <div key={msg._id || index} className={styles.messageRow} style={{ justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+                          <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
+                            {!isMe && <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />}
+                            <div>
+                              {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
+                              <div className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}>
+                                <span className={styles.messageText}>
+                                  {msg.text}
+                                  {msg.image && (
+                                    <img 
+                                      src={msg.image} 
+                                      alt="Sent asset" 
+                                      className={styles.chatImage} 
+                                      onClick={() => window.open(msg.image, '_blank')} 
+                                    />
+                                  )}
+                                </span>
+                                <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
 
-            {/* 🌟 Action trigger: Appends a 'forceVisible' class if this message's menu is open */}
-            {isMe && msg._id && (
-              <div className={`${styles.messageActionTrigger} ${isMenuOpen ? styles.forceVisible : ''}`}>
-                <button 
-                  onClick={() => setOpenMenuId(isMenuOpen ? null : msg._id)} 
-                  className={styles.optionsButton}
-                  title="Message options"
-                >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16">
-  <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
-</svg>
-                </button>
+                                {isMe && msg._id && (
+                                  <div className={`${styles.messageActionTrigger} ${isMenuOpen ? styles.forceVisible : ''}`}>
+                                    <button 
+                                      onClick={() => setOpenMenuId(isMenuOpen ? null : msg._id)} 
+                                      className={styles.optionsButton}
+                                      title="Message options"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+                                      </svg>
+                                    </button>
 
-                {/* Dropdown Menu */}
-                 {isMenuOpen && (
-                    <div className={styles.dropdownMenu}>
-                      <button 
-                        onClick={() => {
-                          setActiveDropdownId(null);
-                          setDeleteModalMessageId(msg._id);
-                        }}
-                        className={styles.dropdownItemDelete}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  )}
-              </div>
-            )}
-          </div>
-        </div>
-        
-      </div>
-      
-    </div>
-    
-  );
-})}
+                                    {isMenuOpen && (
+                                      <div className={styles.dropdownMenu}>
+                                        <button 
+                                          onClick={() => {
+                                            setOpenMenuId(null);
+                                            setDeleteModalMessageId(msg._id);
+                                          }}
+                                          className={styles.dropdownItemDelete}
+                                        >
+                                          Delete
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                     {typingUser && (
                       <div className={styles.typingIndicatorRow}>
                         <div className={styles.typingBubble}>
@@ -423,39 +450,67 @@ const getPrivateRoomId = (uid1, uid2) => {
                         <span className={styles.typingText}>{typingUser} is typing...</span>
                       </div>
                     )}
-                    
                   </>
                 )}
                 <div ref={messagesEndRef} />
               </div>
-                  {showScrollBtn && (
-    <button onClick={scrollToBottom} className={styles.scrollToBottomBtn}>
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-double-down" viewBox="0 0 16 16">
-  <path fill-rule="evenodd" d="M1.646 6.646a.5.5 0 0 1 .708 0L8 12.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
-  <path fill-rule="evenodd" d="M1.646 2.646a.5.5 0 0 1 .708 0L8 8.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
-</svg>
-    </button>
-  )}
-              <form onSubmit={handleSendMessage} className={styles.chatForm}>
-                <input 
-                  type="text" 
-                  value={newMessage} 
-                  onChange={handleInputChange} 
-                  placeholder={roomLoading ? "Loading room..." : "Type a message..."}
-                  disabled={roomLoading}
-                  className={styles.chatInput} 
-                />
-                <button type="submit" disabled={roomLoading} className={styles.sendBtn}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-send" viewBox="0 0 16 16">
-  <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576zm6.787-8.201L1.591 6.602l4.339 2.76z"/>
-</svg><span className={styles.btnText}>Send</span></button>
-              </form>
+
+              {showScrollBtn && (
+                <button onClick={scrollToBottom} className={styles.scrollToBottomBtn} aria-label="Scroll to bottom">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+                  </svg>
+                </button>
+              )}
+
+              <div style={{ position: 'relative', width: '100%' }}>
+                {selectedImage && (
+                  <div className={styles.previewContainer}>
+                    <img src={selectedImage} alt="Upload preview" className={styles.previewImage} />
+                    <button type="button" onClick={() => setSelectedImage(null)} className={styles.removePreviewBtn}>×</button>
+                  </div>
+                )}
+
+                <form onSubmit={handleSendMessage} className={styles.chatForm}>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    ref={fileInputRef} 
+                    onChange={handleImageSelect} 
+                    style={{ display: 'none' }} 
+                  />
+                  
+                  <button type="button" onClick={() => fileInputRef.current.click()} className={styles.logoutBtn} style={{padding: '8px 12px', borderColor: '#374151', color: '#9ca3af', marginRight: '-4px'}}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-paperclip" viewBox="0 0 16 16">
+                      <path d="M4.5 3a2.5 2.5 0 0 1 5 0v9a1.5 1.5 0 0 1-3 0V5a.5.5 0 0 1 1 0v7a.5.5 0 0 0 1 0V3a1.5 1.5 0 1 0-3 0v9a2.5 2.5 0 0 0 5 0V5a.5.5 0 0 1 1 0v7a3.5 3.5 0 1 1-7 0z"/>
+                    </svg>
+                  </button>
+
+                  <input 
+                    type="text" 
+                    value={newMessage} 
+                    onChange={handleInputChange} 
+                    onPaste={handlePaste}
+                    placeholder={roomLoading ? "Loading room..." : "Type a message..."}
+                    disabled={roomLoading}
+                    className={styles.chatInput} 
+                  />
+                  
+                  <button type="submit" disabled={roomLoading} className={styles.sendBtn}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                      <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576zm6.787-8.201L1.591 6.602l4.339 2.76z"/>
+                    </svg>
+                    <span className={styles.btnText} style={{marginLeft: '6px'}}>Send</span>
+                  </button>
+                </form>
+              </div>
+
             </div>
           </div>
-          
         </div>
       )}
 
-      {/* Custom Deletion Confirmation & Loading Modal */}
+      {/* Delete Confirmation Modal */}
       {deleteModalMessageId && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalCard}>
@@ -469,10 +524,7 @@ const getPrivateRoomId = (uid1, uid2) => {
               </div>
             ) : (
               <div className={styles.modalActions}>
-                <button 
-                  onClick={() => setDeleteModalMessageId(null)}
-                  className={styles.modalCancelBtn}
-                >
+                <button onClick={() => setDeleteModalMessageId(null)} className={styles.modalCancelBtn}>
                   Cancel
                 </button>
                 <button 
@@ -495,7 +547,6 @@ const getPrivateRoomId = (uid1, uid2) => {
           </div>
         </div>
       )}
-      
     </div>
   );
 }
