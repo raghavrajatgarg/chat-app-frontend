@@ -65,8 +65,8 @@ useEffect(() => {
 
 const playAlertSound = () => {
   try {
-    const audio = new Audio('/notification.mp3');
-    audio.volume = 0.4; // Soft background ambient level
+    const audio = new Audio('/notification.wav');
+    audio.volume = 1; // Soft background ambient level
     audio.play();
   } catch (error) {
     console.warn("Audio system context blocked by browser user interaction policy rule.", error);
@@ -271,13 +271,17 @@ useEffect(() => {
     setSocket(newSocket);
 
     // 🌟 NEW MOBILE SUBSCRIPTION HANDRESHAKE
+    // 🌟 FIXEDMOBILE HANDSHAKE: Paste this exact block over lines 152-167
     let deviceSubscription = null;
     try {
       if ('serviceWorker' in navigator && 'PushManager' in window) {
-        // Register the background thread script
+        // 1. Register the background thread script
         const registration = await navigator.serviceWorker.register('/sw.js');
         
-        // Request an official secure push device endpoint token from the browser engine
+        // 2. 🌟 CRUCIAL: Force mobile phones to wait until the service worker is active before requesting keys
+        await navigator.serviceWorker.ready;
+        
+        // 3. Request an official secure push device endpoint token from the browser engine
         deviceSubscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY)
@@ -286,6 +290,7 @@ useEffect(() => {
     } catch (pushErr) {
       console.warn("⚠️ Push token registration skipped (Normal on unsupported desktop environments):", pushErr);
     }
+
     
     // Send your user information alongside the device push token to the backend
     newSocket.emit('user_connected', {
