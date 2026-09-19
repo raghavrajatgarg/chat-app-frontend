@@ -3,6 +3,9 @@ import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
 import { io } from 'socket.io-client';
 import { auth, googleProvider } from './firebase';
 import styles from './App.module.css';
+import { getMessaging, getToken } from "firebase/messaging";
+import { initializeApp } from 'firebase/app';
+
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://chat-app-backend-1yfa.onrender.com';
 // Utility helper to convert VAPID keys for browser push subscriptions
@@ -256,7 +259,6 @@ const handleImageSelect = (e) => {
 
   // Paste your exact VAPID Public Key here from Step 1
 const VAPID_PUBLIC_KEY = "BPswpQ4tKgGthuTxhGVugrf6dikA4YOwckM5zPjI4plnmnOX9IiLk8_q5ORJz-J4v450wy7kho-KumO7OvZGN4E";
-
 useEffect(() => {
   if (!user) return;
   let isMounted = true;
@@ -270,43 +272,34 @@ useEffect(() => {
     });
     setSocket(newSocket);
 
-    // 🌟 NEW MOBILE SUBSCRIPTION HANDRESHAKE
-    // 🌟 FIXEDMOBILE HANDSHAKE: Paste this exact block over lines 152-167
-    let deviceSubscription = null;
+    let fcmDeviceToken = null;
     try {
-      if ('serviceWorker' in navigator && 'PushManager' in window) {
-        // 1. Register the background thread script
-        const registration = await navigator.serviceWorker.register('/sw.js');
+      if ('serviceWorker' in navigator) {
+        // 1. Tell Firebase to initialize its messaging client
+        const messaging = getMessaging();
         
-        // 2. 🌟 CRUCIAL: Force mobile phones to wait until the service worker is active before requesting keys
+        // 2. Register the service worker and explicitly wait until the phone confirms it is ready
+        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
         await navigator.serviceWorker.ready;
-        
-        // 3. Request an official secure push device endpoint token from the browser engine
-        deviceSubscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY)
+
+        // 3. 🌟 LET GOOGLE GENERATE THE MOBILE PUSH TOKEN!
+        fcmDeviceToken = await getToken(messaging, {
+          vapidKey: "BI2_PHDGRR7jW2ybN8Vyo_ozgB1TYjw5k9omVSDIsFMMaKUk8L6lInMVo63bXxe-19Rb7QQlLNPgpfnW_88_Q-A", //
+          serviceWorkerRegistration: registration
         });
       }
     } catch (pushErr) {
-      console.warn("⚠️ Push token registration skipped (Normal on unsupported desktop environments):", pushErr);
+      console.warn("⚠️ FCM Token generation skipped on desktop browser:", pushErr);
     }
-
     
-    // Send your user information alongside the device push token to the backend
+    // Send the clean, validated Google FCM token to the backend server!
     newSocket.emit('user_connected', {
       uid: user.uid,
       name: user.displayName,
       email: user.email,
       avatar: user.photoURL,
-      pushSubscription: deviceSubscription // 🌟 Pipes your mobile token over the socket loop!
+      pushSubscription: fcmDeviceToken // Send this clean string instead of the messy object
     });
-
-    // ... Keep all your existing newSocket.on('active_users_list', ...) listeners identical below here ...
-    newSocket.on('active_users_list', (users) => {
-      const uniqueUsers = Array.from(new Map(users.map(u => [u.uid, u])).values());
-      setActiveUsers(uniqueUsers);
-    });
-    // ... keep your message, delete, and typing observers exactly the same ...
 
       newSocket.off('receive_message');
       newSocket.off('message_updated');
