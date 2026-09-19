@@ -4,7 +4,19 @@ import { io } from 'socket.io-client';
 import { auth, googleProvider } from './firebase';
 import styles from './App.module.css';
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://chat-app-backend-1yfa.onrender.com';
+// Utility helper to convert VAPID keys for browser push subscriptions
+function urlB64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -43,6 +55,13 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef(null);
 
+useEffect(() => {
+  if ('serviceWorker' in navigator && 'PushManager' in window) {
+    navigator.serviceWorker.register('/sw.js')
+      .then((reg) => console.log('🚀 Mobile Service Worker safely registered!', reg))
+      .catch((err) => console.error('Service worker registration failed:', err));
+  }
+}, []);
 
 const playAlertSound = () => {
   try {
@@ -231,37 +250,58 @@ const handleImageSelect = (e) => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
-    if (currentUser && Notification.permission === "default") {
-      Notification.requestPermission();
-    }
     });
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (!user) return;
-    let isMounted = true;
+  // Paste your exact VAPID Public Key here from Step 1
+const VAPID_PUBLIC_KEY = "BPswpQ4tKgGthuTxhGVugrf6dikA4YOwckM5zPjI4plnmnOX9IiLk8_q5ORJz-J4v450wy7kho-KumO7OvZGN4E";
 
-    user.getIdToken().then((token) => {
-      if (!isMounted) return;
+useEffect(() => {
+  if (!user) return;
+  let isMounted = true;
 
-      const newSocket = io(BACKEND_URL, { 
-        autoConnect: true,
-        auth: { token }
-      });
-      setSocket(newSocket);
-      
-      newSocket.emit('user_connected', {
-        uid: user.uid,
-        name: user.displayName,
-        email: user.email,
-        avatar: user.photoURL
-      });
+  user.getIdToken().then(async (token) => {
+    if (!isMounted) return;
 
-      newSocket.on('active_users_list', (users) => {
-        const uniqueUsers = Array.from(new Map(users.map(u => [u.uid, u])).values());
-        setActiveUsers(uniqueUsers);
-      });
+    const newSocket = io(BACKEND_URL, { 
+      autoConnect: true,
+      auth: { token }
+    });
+    setSocket(newSocket);
+
+    // 🌟 NEW MOBILE SUBSCRIPTION HANDRESHAKE
+    let deviceSubscription = null;
+    try {
+      if ('serviceWorker' in navigator && 'PushManager' in window) {
+        // Register the background thread script
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        
+        // Request an official secure push device endpoint token from the browser engine
+        deviceSubscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+      }
+    } catch (pushErr) {
+      console.warn("⚠️ Push token registration skipped (Normal on unsupported desktop environments):", pushErr);
+    }
+    
+    // Send your user information alongside the device push token to the backend
+    newSocket.emit('user_connected', {
+      uid: user.uid,
+      name: user.displayName,
+      email: user.email,
+      avatar: user.photoURL,
+      pushSubscription: deviceSubscription // 🌟 Pipes your mobile token over the socket loop!
+    });
+
+    // ... Keep all your existing newSocket.on('active_users_list', ...) listeners identical below here ...
+    newSocket.on('active_users_list', (users) => {
+      const uniqueUsers = Array.from(new Map(users.map(u => [u.uid, u])).values());
+      setActiveUsers(uniqueUsers);
+    });
+    // ... keep your message, delete, and typing observers exactly the same ...
 
       newSocket.off('receive_message');
       newSocket.off('message_updated');
