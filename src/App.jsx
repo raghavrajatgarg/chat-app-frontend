@@ -31,6 +31,67 @@ export default function App() {
     ? room 
     : getPrivateRoomId(user.uid, selectedUser?.uid);
   const roomRef = useRef(room);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const touchStartRef = useRef({ x: 0, y: 0 });
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const feedRef = useRef(null); // Attach this ref to your .messageFeed div
+
+const handleFeedScroll = (e) => {
+  const { scrollTop, scrollHeight, clientHeight } = e.target;
+  // If the user has scrolled up by more than 300px from the bottom, show the button
+  const isScrolledUp = scrollHeight - scrollTop - clientHeight > 300;
+  setShowScrollBtn(isScrolledUp);
+};
+
+const scrollToBottom = () => {
+  messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+};
+
+
+const handleTouchStart = (e) => {
+  const touch = e.touches[0];
+  // Track where the user first placed their finger
+  touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+};
+
+const handleTouchEnd = (e) => {
+  const touch = e.changedTouches[0];
+  const startX = touchStartRef.current.x;
+  const startY = touchStartRef.current.y;
+  
+  const diffX = touch.clientX - startX;
+  const diffY = touch.clientY - startY;
+
+  // 1. Core Rule: Ensure it's mostly a horizontal swipe, not a vertical scroll
+  if (Math.abs(diffX) > Math.abs(diffY)) {
+    
+    // CASE A: Sidebar is closed -> Detect swipe right from the LEFT EDGE to OPEN
+    if (!isMobileMenuOpen) {
+      const edgeZone = 40; // 40px hit area from the left edge of the screen
+      const minSwipeDistance = 50; // Minimum pixels to travel to count as a swipe
+      
+      if (startX <= edgeZone && diffX > minSwipeDistance) {
+        setIsMobileMenuOpen(true);
+      }
+    }
+    
+    // CASE B: Sidebar is open -> Detect swipe left ANYWHERE to CLOSE
+    else if (isMobileMenuOpen) {
+      const minSwipeDistance = 50;
+      
+      if (diffX < -minSwipeDistance) {
+        setIsMobileMenuOpen(false);
+      }
+    }
+  }
+};
+
+
+  // Helper to change room and auto-close sidebar on mobile
+  const handleSelectRoom = (selectedRoom) => {
+    setRoom(selectedRoom);
+    setIsMobileMenuOpen(false); // Closes sidebar automatically on mobile selection
+  };
   useEffect(() => { roomRef.current = room; }, [room]);
 
   const unreadCountsRef = useRef(unreadCounts);
@@ -208,7 +269,9 @@ const getPrivateRoomId = (uid1, uid2) => {
   const currentRoomUsers = activeUsers
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container}
+         onTouchStart={handleTouchStart}
+         onTouchEnd={handleTouchEnd}    >
       {!user ? (
         <div className={styles.loginContainer}>
           <div className={styles.loginCard}>
@@ -222,7 +285,18 @@ const getPrivateRoomId = (uid1, uid2) => {
       ) : (
         <div className={styles.chatWrapper}>
           <header className={styles.header}>
+            <button 
+  className={styles.hamburgerButton} 
+  onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+  aria-label="Toggle navigation menu"
+>
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-list" viewBox="0 0 16 16">
+  <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/>
+</svg>  
+</button>
   <div className={styles.headerLeft}>
+    {/* Hamburger / Sandwich Icon Button */}
+
     <img src={user.photoURL} alt="Profile" className={styles.profileImg} />
     <div className={styles.headerUserInfo}>
       <span className={styles.headerUserName}>{user.displayName}</span>
@@ -231,15 +305,22 @@ const getPrivateRoomId = (uid1, uid2) => {
   </div>
   <button onClick={() => signOut(auth)} className={styles.logoutBtn}>Log Out</button>
 </header>
-          <div className={styles.mainContent}>
-            <aside className={styles.sidebar}>
+            <div className={styles.mainContent}>
+            {/* 🌟 Dark overlay backdrop for mobile */}
+            <div 
+              className={`${styles.backdrop} ${isMobileMenuOpen ? styles.backdropVisible : ''}`} 
+              onClick={() => setIsMobileMenuOpen(false)} 
+            />
+
+            {/* 🌟 Dynamic sidebar classes for sliding animation */}
+            <aside className={`${styles.sidebar} ${isMobileMenuOpen ? styles.sidebarOpen : ''}`}>
               <div className={styles.sidebarSection}>
                 <h4 className={styles.sidebarTitle}>Channels</h4>
                 <div className={styles.roomList}>
                   {roomsList.map((channel) => (
                     <button
                       key={channel}
-                      onClick={() => setRoom(channel)}
+                      onClick={() => handleSelectRoom(channel)} // Use handleSelectRoom to auto-close on mobile
                       className={`${styles.roomBtn} ${room === channel ? styles.roomBtnActive : ''}`}
                     >
                       <span># {channel}</span>
@@ -268,7 +349,10 @@ const getPrivateRoomId = (uid1, uid2) => {
             </aside>
 
             <div className={styles.chatWindow}>
-              <div className={styles.messageFeed}>
+              <div className={styles.messageFeed}
+                ref={feedRef} 
+                  onScroll={handleFeedScroll}
+>
                 {roomLoading ? (
                   <div className={styles.roomLoaderContainer}>
                     <div className={styles.spinner} />
@@ -322,8 +406,11 @@ const getPrivateRoomId = (uid1, uid2) => {
             )}
           </div>
         </div>
+        
       </div>
+      
     </div>
+    
   );
 })}
                     {typingUser && (
@@ -336,11 +423,19 @@ const getPrivateRoomId = (uid1, uid2) => {
                         <span className={styles.typingText}>{typingUser} is typing...</span>
                       </div>
                     )}
+                    
                   </>
                 )}
                 <div ref={messagesEndRef} />
               </div>
-
+                  {showScrollBtn && (
+    <button onClick={scrollToBottom} className={styles.scrollToBottomBtn}>
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-double-down" viewBox="0 0 16 16">
+  <path fill-rule="evenodd" d="M1.646 6.646a.5.5 0 0 1 .708 0L8 12.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+  <path fill-rule="evenodd" d="M1.646 2.646a.5.5 0 0 1 .708 0L8 8.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+</svg>
+    </button>
+  )}
               <form onSubmit={handleSendMessage} className={styles.chatForm}>
                 <input 
                   type="text" 
@@ -350,10 +445,13 @@ const getPrivateRoomId = (uid1, uid2) => {
                   disabled={roomLoading}
                   className={styles.chatInput} 
                 />
-                <button type="submit" disabled={roomLoading} className={styles.sendBtn}>Send</button>
+                <button type="submit" disabled={roomLoading} className={styles.sendBtn}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-send" viewBox="0 0 16 16">
+  <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576zm6.787-8.201L1.591 6.602l4.339 2.76z"/>
+</svg><span className={styles.btnText}>Send</span></button>
               </form>
             </div>
           </div>
+          
         </div>
       )}
 
@@ -397,6 +495,7 @@ const getPrivateRoomId = (uid1, uid2) => {
           </div>
         </div>
       )}
+      
     </div>
   );
 }
