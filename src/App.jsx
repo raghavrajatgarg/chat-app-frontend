@@ -9,6 +9,18 @@ import { initializeApp } from 'firebase/app';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://chat-app-backend-1yfa.onrender.com';
 // Utility helper to convert VAPID keys for browser push subscriptions
+// Initialize the Firebase app inside the background thread script
+const firebaseConfig = {
+  apiKey: "AIzaSyDW-CyZQnI7meaIFBVdQc6iRM37qjStkB8",
+  authDomain: "chatapp-7e398.firebaseapp.com",
+  projectId: "chatapp-7e398",
+  storageBucket: "chatapp-7e398.firebasestorage.app",
+  messagingSenderId: "566031305634",
+  appId: "1:566031305634:web:3a67afa23774a4cac200fb",
+};
+
+initializeApp(firebaseConfig);
+
 function urlB64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
@@ -57,14 +69,6 @@ export default function App() {
   const [editingText, setEditingText] = useState(''); // Stores the temporary inline changes
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef(null);
-
-useEffect(() => {
-  if ('serviceWorker' in navigator && 'PushManager' in window) {
-    navigator.serviceWorker.register('/sw.js')
-      .then((reg) => console.log('🚀 Mobile Service Worker safely registered!', reg))
-      .catch((err) => console.error('Service worker registration failed:', err));
-  }
-}, []);
 
 const playAlertSound = () => {
   try {
@@ -258,7 +262,7 @@ const handleImageSelect = (e) => {
   }, []);
 
   // Paste your exact VAPID Public Key here from Step 1
-const VAPID_PUBLIC_KEY = "BPswpQ4tKgGthuTxhGVugrf6dikA4YOwckM5zPjI4plnmnOX9IiLk8_q5ORJz-J4v450wy7kho-KumO7OvZGN4E";
+// 🌟 UNIFIED DISPATCH: Replace lines 147-249 with this clean block
 useEffect(() => {
   if (!user) return;
   let isMounted = true;
@@ -266,6 +270,7 @@ useEffect(() => {
   user.getIdToken().then(async (token) => {
     if (!isMounted) return;
 
+    // Connect to the Socket.io server instance
     const newSocket = io(BACKEND_URL, { 
       autoConnect: true,
       auth: { token }
@@ -282,82 +287,93 @@ useEffect(() => {
         const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
         await navigator.serviceWorker.ready;
 
-        // 3. 🌟 LET GOOGLE GENERATE THE MOBILE PUSH TOKEN!
+        // 3. LET GOOGLE GENERATE THE MOBILE PUSH TOKEN STRING
         fcmDeviceToken = await getToken(messaging, {
-          vapidKey: "BI2_PHDGRR7jW2ybN8Vyo_ozgB1TYjw5k9omVSDIsFMMaKUk8L6lInMVo63bXxe-19Rb7QQlLNPgpfnW_88_Q-A", //
+          vapidKey: "BI2_PHDGRR7jW2ybN8Vyo_ozgB1TYjw5k9omVSDIsFMMaKUk8L6lInMVo63bXxe-19Rb7QQlLNPgpfnW_88_Q-A", 
           serviceWorkerRegistration: registration
         });
+        
+        console.log("🔥 Successfully secured live FCM Device Token string!");
       }
     } catch (pushErr) {
-      console.warn("⚠️ FCM Token generation skipped on desktop browser:", pushErr);
+      console.warn("⚠️ FCM Token generation skipped on desktop browser layout:", pushErr);
     }
     
-    // Send the clean, validated Google FCM token to the backend server!
+    // 🌟 ONLY ONE SINGLE DISPATCH: Handshake user details + the clean Google FCM token string
     newSocket.emit('user_connected', {
       uid: user.uid,
       name: user.displayName,
       email: user.email,
       avatar: user.photoURL,
-      pushSubscription: fcmDeviceToken // Send this clean string instead of the messy object
+      pushSubscription: fcmDeviceToken 
     });
 
-      newSocket.off('receive_message');
-      newSocket.off('message_updated');
-      newSocket.off('message_deleted');
+    // Synchronize workspace active user maps
+    newSocket.on('active_users_list', (users) => {
+      const uniqueUsers = Array.from(new Map(users.map(u => [u.uid, u])).values());
+      setActiveUsers(uniqueUsers);
+    });
+
+    // Clear old pipeline observers before mapping real-time events
+    newSocket.off('receive_message');
+    newSocket.off('message_updated');
+    newSocket.off('message_deleted');
+    
+    newSocket.on('message_updated', (updatedMsg) => {
+      setMessages((prev) => 
+        prev.map((msg) => (msg._id === updatedMsg._id ? updatedMsg : msg))
+      );
+    });
+
+    newSocket.on('message_deleted', (deletedId) => {
+      setMessages((prev) => prev.filter((msg) => msg._id !== deletedId));
+    });
+    
+    newSocket.on('receive_message', (message) => {
+      const activeRoom = roomRef.current;
+      if (message.room === activeRoom) {
+        setMessages((prev) => [...prev, message]);
+
+        if (message.senderUid !== user.uid) {
+          playAlertSound();
+        }
+      } 
+      if (message.room !== activeRoom && message.senderUid !== user.uid) {
+        setUnreadCounts((prev) => {
+          const nextCount = (prev[message.room] || 0) + 1;
+          return { ...prev, [message.room]: nextCount };
+        });
+      }
       
-      newSocket.on('message_updated', (updatedMsg) => {
-        setMessages((prev) => 
-          prev.map((msg) => (msg._id === updatedMsg._id ? updatedMsg : msg))
-        );
-      });
+      // Native system banner notification check if window tab is backgrounded
+      const shouldNotify = document.hidden || message.room !== activeRoom;
+      if (shouldNotify && message.senderUid !== user.uid) {
+        new Notification(`#${message.room} | ${message.sender}`, {
+          body: message.text !== "\u200B" ? message.text : "Sent an image asset 📷",
+          icon: message.avatar || 'https://placeholder.com'
+        });
+      }
+    });
 
-      newSocket.on('message_deleted', (deletedId) => {
-        setMessages((prev) => prev.filter((msg) => msg._id !== deletedId));
-      });
-      
-      newSocket.on('receive_message', (message) => {
-        const activeRoom = roomRef.current;
-        if (message.room === activeRoom) {
-          setMessages((prev) => [...prev, message]);
+    newSocket.on('display_typing', ({ userName, room: typingRoom }) => {
+      if (typingRoom === roomRef.current) {
+        setTypingUser(userName);
+      }
+    });
 
-          if (message.senderUid !== user.uid) {
-            playAlertSound();
-          }
-        } 
-        if (message.room !== activeRoom && message.senderUid !== user.uid) {
-          setUnreadCounts((prev) => {
-            const nextCount = (prev[message.room] || 0) + 1;
-            return { ...prev, [message.room]: nextCount };
-          });
-        }
-        const shouldNotify = document.hidden || message.room !== activeRoom;
-        if (shouldNotify && message.senderUid !== user.uid) {
-          new Notification(`#${message.room} | ${message.sender}`, {
-            body: message.text !== "\u200B" ? message.text : "Sent an image asset 📷",
-            icon: message.avatar || 'https://placeholder.com'
-          });
-        }
-      });
+    newSocket.on('hide_typing', ({ room: typingRoom }) => {
+      if (typingRoom === roomRef.current) {
+        setTypingUser(null);
+      }
+    });
 
-      newSocket.on('display_typing', ({ userName, room: typingRoom }) => {
-        if (typingRoom === roomRef.current) {
-          setTypingUser(userName);
-        }
-      });
+  }).catch((err) => console.error("Socket auth token error:", err));
 
-      newSocket.on('hide_typing', ({ room: typingRoom }) => {
-        if (typingRoom === roomRef.current) {
-          setTypingUser(null);
-        }
-      });
-
-    }).catch((err) => console.error("Socket auth token error:", err));
-
-    return () => {
-      isMounted = false;
-      if (socket) socket.disconnect();
-    };
-  }, [user]);
+  return () => {
+    isMounted = false;
+    if (socket) socket.disconnect();
+  };
+}, [user]);
 
   function getPrivateRoomId(uid1, uid2) {
     return [uid1, uid2].sort().join('_');
