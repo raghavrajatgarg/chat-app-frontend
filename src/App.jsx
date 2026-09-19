@@ -8,18 +8,7 @@ import { initializeApp } from 'firebase/app';
 
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://chat-app-backend-1yfa.onrender.com';
-// Utility helper to convert VAPID keys for browser push subscriptions
-// Initialize the Firebase app inside the background thread script
-const firebaseConfig = {
-  apiKey: "AIzaSyDW-CyZQnI7meaIFBVdQc6iRM37qjStkB8",
-  authDomain: "chatapp-7e398.firebaseapp.com",
-  projectId: "chatapp-7e398",
-  storageBucket: "chatapp-7e398.firebasestorage.app",
-  messagingSenderId: "566031305634",
-  appId: "1:566031305634:web:3a67afa23774a4cac200fb",
-};
 
-initializeApp(firebaseConfig);
 
 function urlB64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
