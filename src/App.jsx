@@ -268,26 +268,44 @@ export default function App() {
     }
   };
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if ((!newMessage.trim() && !selectedImage) || !socket) return;
+ const handleSendMessage = async (e) => {
+  e.preventDefault();
+  
+  // 1. Guard Rule: Block if BOTH text and image strings are totally non-existent
+  if (!newMessage.trim() && !selectedImage) {
+    console.log("⚠️ Blocked transmission: Message body is completely empty.");
+    return;
+  }
+  
+  if (!socket) return;
 
-    socket.emit('typing_stop', { room });
+  // Stop typing tracker safely
+  socket.emit('typing_stop', { room });
 
-    const messageData = {
-      text: newMessage,
-      sender: user.displayName || user.email,
-      senderUid: user.uid,
-      image: selectedImage, 
-      avatar: user.photoURL,
-      room: room,
-      createdAt: new Date(),
-    };
-
-    socket.emit('send_message', messageData);
-    setNewMessage('');
-    setSelectedImage(null); 
+  // 2. Prepare payload cleanly
+  const messageData = {
+    // If text is blank or spaces, fallback to an empty string cleanly
+    text: newMessage.trim() ? newMessage : "", 
+    sender: user.displayName || user.email,
+    senderUid: user.uid,
+    image: selectedImage ? selectedImage : null, // Attaches the base64 string safely
+    avatar: user.photoURL,
+    room: room,
+    createdAt: new Date(),
   };
+
+  try {
+    // 3. Emit the socket packet payload safely
+    socket.emit('send_message', messageData);
+    
+    // 4. CRUCIAL FIX: ONLY wipe out inputs AFTER the web socket successfully fires
+    setNewMessage('');
+    setSelectedImage(null);
+  } catch (error) {
+    console.error("❌ Failed to push payload over WebSocket frame:", error);
+  }
+};
+
 
   if (loading) {
     return <div className={styles.loader}><h3>Loading...</h3></div>;
