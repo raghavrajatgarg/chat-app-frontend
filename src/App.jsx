@@ -29,7 +29,7 @@ export default function App() {
   const [selectedUser, setSelectedUser] = useState(null); 
   const currentRoom = chatType === 'channel' 
     ? room 
-    : getPrivateRoomId(user.uid, selectedUser?.uid);
+    : getPrivateRoomId(user?.uid, selectedUser?.uid);
   const roomRef = useRef(room);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const touchStartRef = useRef({ x: 0, y: 0 });
@@ -38,8 +38,9 @@ export default function App() {
   const [selectedImage, setSelectedImage] = useState(null); 
   const fileInputRef = useRef(null);
   const [isSendingImage, setIsSendingImage] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState(null); // Tracks active edit ID
+  const [editingText, setEditingText] = useState(''); // Stores the temporary inline changes
 
-  // Converts file uploads into usable Base64 text strings
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -51,7 +52,6 @@ export default function App() {
     reader.readAsDataURL(file);
   };
 
-  // Handle clipboard copy-paste events directly on the input field
   const handlePaste = (e) => {
     const items = e.clipboardData.items;
     for (let i = 0; i < items.length; i++) {
@@ -81,7 +81,6 @@ export default function App() {
     touchStartRef.current = { x: touch.clientX, y: touch.clientY };
   };
 
-  // Crucial: Intercept active horizontal swipes from the edge to block default page-back actions
   const handleTouchMove = (e) => {
     const touch = e.touches[0];
     const startX = touchStartRef.current.x;
@@ -265,42 +264,61 @@ export default function App() {
     }
   };
 
-const handleSendMessage = async (e) => {
-  e.preventDefault();
-  if ((!newMessage.trim() && !selectedImage) || !socket || isSendingImage) return;
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if ((!newMessage.trim() && !selectedImage) || !socket || isSendingImage) return;
 
-  if (selectedImage) {
-    setIsSendingImage(true); // Turn loader on
-  }
+    if (selectedImage) {
+      setIsSendingImage(true);
+    }
 
-  socket.emit('typing_stop', { room });
+    socket.emit('typing_stop', { room });
 
-  const messageData = {
-    text: newMessage.trim() ? newMessage : "\u200B", 
-    sender: user.displayName || user.email,
-    senderUid: user.uid,
-    image: selectedImage ? selectedImage : null,
-    avatar: user.photoURL,
-    room: room,
-    createdAt: new Date(),
+    const messageData = {
+      text: newMessage.trim() ? newMessage : "\u200B", 
+      sender: user.displayName || user.email,
+      senderUid: user.uid,
+      image: selectedImage ? selectedImage : null,
+      avatar: user.photoURL,
+      room: room,
+      createdAt: new Date(),
+    };
+
+    try {
+      socket.emit('send_message', messageData, (response) => {
+        if (response && response.success) {
+          setNewMessage('');
+          setSelectedImage(null);
+        } else {
+          alert("Failed to send message: " + (response?.error || "Unknown error"));
+        }
+        setIsSendingImage(false); 
+      });
+      
+    } catch (error) {
+      console.error("❌ Transmission error:", error);
+      setIsSendingImage(false);
+    }
+  };
+  const handleEditMessage = (msgId) => {
+  if (!editingText.trim() || !socket) return;
+
+  const editPayload = {
+    messageId: msgId,
+    text: editingText,
+    userId: user.uid, // Passes authorization data keys natively over sockets
+    room: room        // Tells the socket which timeline room to broadcast the changes to
   };
 
   try {
-    // 🌟 UPDATE THIS LINE: Add the acknowledgement function parameter
-    socket.emit('send_message', messageData, (response) => {
-      // This code ONLY executes when the backend server replies back!
-      if (response && response.success) {
-        setNewMessage('');
-        setSelectedImage(null);
-      } else {
-        alert("Failed to send message: " + (response?.error || "Unknown error"));
-      }
-      setIsSendingImage(false); // 🌟 Spinner turns off exactly when sent!
-    });
+    // Emit the update event directly over the established real-time socket link
+    socket.emit('edit_message', editPayload);
     
+    // Clean up local states instantly on submission pass
+    setEditingMessageId(null);
+    setEditingText('');
   } catch (error) {
-    console.error("❌ Transmission error:", error);
-    setIsSendingImage(false);
+    console.error("❌ Failed to push edit changes over active socket frame:", error);
   }
 };
 
@@ -397,6 +415,18 @@ const handleSendMessage = async (e) => {
                     <div className={styles.spinner} />
                     <p className={styles.modalDescription} style={{ marginTop: '10px' }}>Switching to #{room}...</p>
                   </div>
+                ) : selectedImage ? (
+                  <div className={styles.previewContainer}>
+                    <img src={selectedImage} alt="Upload preview" className={styles.previewImage} />
+                    <button 
+                      type="button" 
+                      onClick={() => !isSendingImage && setSelectedImage(null)} 
+                      className={styles.removePreviewBtn}
+                      disabled={isSendingImage}
+                    >
+                      ×
+                    </button>
+                  </div>
                 ) : (
                   <>
                     {messages.map((msg, index) => {
@@ -411,17 +441,34 @@ const handleSendMessage = async (e) => {
                             <div>
                               {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
                               <div className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}>
-                                <span className={styles.messageText}>
-                                  {msg.text}
-                                  {msg.image && (
-                                    <img 
-                                      src={msg.image} 
-                                      alt="Sent asset" 
-                                      className={styles.chatImage} 
-                                      onClick={() => window.open(msg.image, '_blank')} 
+                                {editingMessageId === msg._id ? (
+                                  /* 🌟 ACTIVE EDIT MODE: Render an interactive inline editor area fields */
+                                  <div className={styles.editFormInline}>
+                                    <input 
+                                      type="text" 
+                                      value={editingText} 
+                                      onChange={(e) => setEditingText(e.target.value)} 
+                                      className={styles.editInputInline}
+                                      autoFocus
                                     />
-                                  )}
-                                </span>
+                                    <div className={styles.editActionsInline}>
+                                      <button onClick={() => handleEditMessage(msg._id)} className={styles.editSaveBtn}>Save</button>
+                                      <button onClick={() => { setEditingMessageId(null); setEditingText(''); }} className={styles.editCancelBtn}>Cancel</button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  /* STANDARD DISPLAY MODE: Show plain layout strings as normal */
+                                  <span className={styles.messageText}>
+                                    {msg.text !== "\u200B" && msg.text}
+
+                                    {/* 🌟 OPTIONAL UX CHECK: Show an "(edited)" tag if the message was modified */}
+                                    {msg.edited && <small className={styles.editedIndicatorTag}> (edited)</small>}
+
+                                    {msg.image && (
+                                      <img src={msg.image} alt="Sent asset" className={styles.chatImage} onClick={() => window.open(msg.image, '_blank')} />
+                                    )}
+                                  </span>
+                                )}
                                 <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
 
                                 {isMe && msg._id && (
@@ -446,6 +493,16 @@ const handleSendMessage = async (e) => {
                                           className={styles.dropdownItemDelete}
                                         >
                                           Delete
+                                        </button>
+                                         <button 
+                                          onClick={() => {
+                                            setOpenMenuId(null); // Close the actions dropdown
+                                            setEditingMessageId(msg._id); // Activate the inline text input
+                                            setEditingText(msg.text); // Pre-fill with the old message content
+                                          }}
+                                          className={styles.dropdownItemEdit}
+                                        >
+                                          Edit
                                         </button>
                                       </div>
                                     )}
@@ -474,21 +531,14 @@ const handleSendMessage = async (e) => {
 
               {showScrollBtn && (
                 <button onClick={scrollToBottom} className={styles.scrollToBottomBtn} aria-label="Scroll to bottom">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-double-down" viewBox="0 0 16 16">
-                    <path fill-rule="evenodd" d="M1.646 6.646a.5.5 0 0 1 .708 0L8 12.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
-                    <path fill-rule="evenodd" d="M1.646 2.646a.5.5 0 0 1 .708 0L8 8.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-chevron-double-down" viewBox="0 0 16 16">
+                    <path fillRule="evenodd" d="M1.646 6.646a.5.5 0 0 1 .708 0L8 12.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+                    <path fillRule="evenodd" d="M1.646 2.646a.5.5 0 0 1 .708 0L8 8.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
                   </svg>
                 </button>
               )}
 
-              <div style={{ position: 'relative', width: '100%' }}>
-                {selectedImage && (
-                  <div className={styles.previewContainer}>
-                    <img src={selectedImage} alt="Upload preview" className={styles.previewImage} />
-                    <button type="button" onClick={() => setSelectedImage(null)} className={styles.removePreviewBtn}>×</button>
-                  </div>
-                )}
-
+              <div className={styles.formWidthWrapper}>
                 <form onSubmit={handleSendMessage} className={styles.chatForm}>
                   <input 
                     type="file" 
@@ -499,7 +549,7 @@ const handleSendMessage = async (e) => {
                   />
                   
                   <button type="button" onClick={() => fileInputRef.current.click()} className={styles.logoutBtn} style={{padding: '8px 12px', borderColor: '#374151', color: '#9ca3af', marginRight: '-4px'}}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-paperclip" viewBox="0 0 16 16">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-paperclip" viewBox="0 0 16 16">
                       <path d="M4.5 3a2.5 2.5 0 0 1 5 0v9a1.5 1.5 0 0 1-3 0V5a.5.5 0 0 1 1 0v7a.5.5 0 0 0 1 0V3a1.5 1.5 0 1 0-3 0v9a2.5 2.5 0 0 0 5 0V5a.5.5 0 0 1 1 0v7a3.5 3.5 0 1 1-7 0z"/>
                     </svg>
                   </button>
@@ -509,25 +559,23 @@ const handleSendMessage = async (e) => {
                     value={newMessage} 
                     onChange={handleInputChange} 
                     onPaste={handlePaste}
-                    placeholder={roomLoading ? "Loading room..." : "Type a message..."}
-                    disabled={roomLoading}
+                    placeholder={isSendingImage ? "Sending image asset..." : roomLoading ? "Loading room..." : "Type a message..."}
+                    disabled={roomLoading || isSendingImage}
                     className={styles.chatInput} 
                   />
                   
                   <button type="submit" disabled={roomLoading || isSendingImage} className={styles.sendBtn}>
                      {isSendingImage ? (
-                       /* This creates the spinning loader visual ring */
                        <span className={styles.inlineSpinner} />
                      ) : (
                        <>
-                         <svg xmlns="http://w3.org" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                            <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576zm6.787-8.201L1.591 6.602l4.339 2.76z"/>
                          </svg>
                          <span className={styles.btnText} style={{marginLeft: '6px'}}>Send</span>
                        </>
                      )}
                   </button>
-
                 </form>
               </div>
 
