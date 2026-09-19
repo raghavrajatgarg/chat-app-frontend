@@ -31,16 +31,13 @@ export default function App() {
     ? room 
     : getPrivateRoomId(user.uid, selectedUser?.uid);
   const roomRef = useRef(room);
-  
-  // Mobile UI States
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const touchStartRef = useRef({ x: 0, y: 0 });
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const feedRef = useRef(null); 
-  
-  // Image Feature States
   const [selectedImage, setSelectedImage] = useState(null); 
   const fileInputRef = useRef(null);
+  const [isSendingImage, setIsSendingImage] = useState(false);
 
   // Converts file uploads into usable Base64 text strings
   const handleImageSelect = (e) => {
@@ -268,43 +265,45 @@ export default function App() {
     }
   };
 
- const handleSendMessage = async (e) => {
+const handleSendMessage = async (e) => {
   e.preventDefault();
-  
-  // 1. Guard Rule: Block if BOTH text and image strings are totally non-existent
-  if (!newMessage.trim() && !selectedImage) {
-    console.log("⚠️ Blocked transmission: Message body is completely empty.");
-    return;
-  }
-  
-  if (!socket) return;
+  if ((!newMessage.trim() && !selectedImage) || !socket || isSendingImage) return;
 
-  // Stop typing tracker safely
+  if (selectedImage) {
+    setIsSendingImage(true); // Turn loader on
+  }
+
   socket.emit('typing_stop', { room });
 
-  // 2. Prepare payload cleanly
   const messageData = {
-    // If text is blank or spaces, fallback to an empty string cleanly
-    text: newMessage.trim() ? newMessage : "", 
+    text: newMessage.trim() ? newMessage : "\u200B", 
     sender: user.displayName || user.email,
     senderUid: user.uid,
-    image: selectedImage ? selectedImage : null, // Attaches the base64 string safely
+    image: selectedImage ? selectedImage : null,
     avatar: user.photoURL,
     room: room,
     createdAt: new Date(),
   };
 
   try {
-    // 3. Emit the socket packet payload safely
-    socket.emit('send_message', messageData);
+    // 🌟 UPDATE THIS LINE: Add the acknowledgement function parameter
+    socket.emit('send_message', messageData, (response) => {
+      // This code ONLY executes when the backend server replies back!
+      if (response && response.success) {
+        setNewMessage('');
+        setSelectedImage(null);
+      } else {
+        alert("Failed to send message: " + (response?.error || "Unknown error"));
+      }
+      setIsSendingImage(false); // 🌟 Spinner turns off exactly when sent!
+    });
     
-    // 4. CRUCIAL FIX: ONLY wipe out inputs AFTER the web socket successfully fires
-    setNewMessage('');
-    setSelectedImage(null);
   } catch (error) {
-    console.error("❌ Failed to push payload over WebSocket frame:", error);
+    console.error("❌ Transmission error:", error);
+    setIsSendingImage(false);
   }
 };
+
 
 
   if (loading) {
@@ -475,8 +474,9 @@ export default function App() {
 
               {showScrollBtn && (
                 <button onClick={scrollToBottom} className={styles.scrollToBottomBtn} aria-label="Scroll to bottom">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-double-down" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M1.646 6.646a.5.5 0 0 1 .708 0L8 12.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+                    <path fill-rule="evenodd" d="M1.646 2.646a.5.5 0 0 1 .708 0L8 8.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
                   </svg>
                 </button>
               )}
@@ -514,12 +514,20 @@ export default function App() {
                     className={styles.chatInput} 
                   />
                   
-                  <button type="submit" disabled={roomLoading} className={styles.sendBtn}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                      <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576zm6.787-8.201L1.591 6.602l4.339 2.76z"/>
-                    </svg>
-                    <span className={styles.btnText} style={{marginLeft: '6px'}}>Send</span>
+                  <button type="submit" disabled={roomLoading || isSendingImage} className={styles.sendBtn}>
+                     {isSendingImage ? (
+                       /* This creates the spinning loader visual ring */
+                       <span className={styles.inlineSpinner} />
+                     ) : (
+                       <>
+                         <svg xmlns="http://w3.org" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                           <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576zm6.787-8.201L1.591 6.602l4.339 2.76z"/>
+                         </svg>
+                         <span className={styles.btnText} style={{marginLeft: '6px'}}>Send</span>
+                       </>
+                     )}
                   </button>
+
                 </form>
               </div>
 
