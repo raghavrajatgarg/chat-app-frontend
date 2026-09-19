@@ -40,17 +40,112 @@ export default function App() {
   const [isSendingImage, setIsSendingImage] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState(null); // Tracks active edit ID
   const [editingText, setEditingText] = useState(''); // Stores the temporary inline changes
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef(null);
 
-  const handleImageSelect = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setSelectedImage(reader.result); 
-    };
-    reader.readAsDataURL(file);
+const playAlertSound = () => {
+  try {
+    const audio = new Audio('/notification.mp3');
+    audio.volume = 0.4; // Soft background ambient level
+    audio.play();
+  } catch (error) {
+    console.warn("Audio system context blocked by browser user interaction policy rule.", error);
+  }
+};
+// 🌟 KEYBOARD INTERACTION SHORTCUT ENGINE (Ctrl + F / Cmd + F focus override)
+useEffect(() => {
+  const handleKeyDown = (e) => {
+    // Detect Ctrl+F on Windows/Linux or Cmd+F on Mac systems
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+      e.preventDefault(); // Stop the default browser search overlay bar from opening
+      searchInputRef.current?.focus(); // Snap focus right into your custom bar input line
+      searchInputRef.current?.select(); // Highlight existing text automatically for quick typing overrides
+    }
   };
+
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown); // Clean cleanup to prevent leaks
+}, []);
+  const handleSvgClick = () => {
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  };
+
+// 🌟 HELPER: Splits text by the search term and highlights matching parts safely
+const highlightText = (text, highlight) => {
+  if (!highlight.trim()) return text;
+  
+  // Escape regex special characters to prevent errors if users search things like "?" or "*"
+  const escapedHighlight = highlight.replace(/[-[\]{}()*+?.,\\^\$|#\s]/g, '\\$&');
+  const regex = new RegExp(`(${escapedHighlight})`, 'gi');
+  const parts = text.split(regex);
+  
+  return parts.map((part, i) => 
+    regex.test(part) ? (
+      <mark key={i} className={styles.searchTextHighlight}>{part}</mark>
+    ) : (
+      part
+    )
+  );
+};
+
+// 🌟 FIX: Auto-scroll back down to the bottom when the user clears a search query
+useEffect(() => {
+  if (!searchQuery.trim()) {
+    // A micro-timeout ensures the browser finishes expanding the hidden text blocks first
+    const timer = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' }); // Use 'auto' to snap down instantly
+    }, 50);
+    
+    return () => clearTimeout(timer);
+  }
+}, [searchQuery]);
+
+
+const handleImageSelect = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.readAsDataURL(file);
+  reader.onload = (event) => {
+    const img = new Image();
+    img.src = event.target.result;
+    img.onload = () => {
+      // Create an off-screen HTML canvas element bounds
+      const canvas = document.createElement('canvas');
+      const MAX_WIDTH = 1000; // Optimal desktop width ceiling
+      const MAX_HEIGHT = 1000;
+      let width = img.width;
+      let height = img.height;
+
+      // Scale proportions smoothly
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height *= MAX_WIDTH / width;
+          width = MAX_WIDTH;
+        }
+      } else {
+        if (height > MAX_HEIGHT) {
+          width *= MAX_HEIGHT / height;
+          height = MAX_HEIGHT;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Export canvas down to a compressed 70% quality JPEG Base64 text string
+      const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+      setSelectedImage(compressedBase64); 
+    };
+  };
+};
+
 
   const handlePaste = (e) => {
     const items = e.clipboardData.items;
@@ -136,6 +231,9 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);
+    if (currentUser && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
     });
     return () => unsubscribe();
   }, []);
@@ -183,11 +281,22 @@ export default function App() {
         const activeRoom = roomRef.current;
         if (message.room === activeRoom) {
           setMessages((prev) => [...prev, message]);
+
+          if (message.senderUid !== user.uid) {
+            playAlertSound();
+          }
         } 
         if (message.room !== activeRoom && message.senderUid !== user.uid) {
           setUnreadCounts((prev) => {
             const nextCount = (prev[message.room] || 0) + 1;
             return { ...prev, [message.room]: nextCount };
+          });
+        }
+        const shouldNotify = document.hidden || message.room !== activeRoom;
+        if (shouldNotify && message.senderUid !== user.uid) {
+          new Notification(`#${message.room} | ${message.sender}`, {
+            body: message.text !== "\u200B" ? message.text : "Sent an image asset 📷",
+            icon: message.avatar || 'https://placeholder.com'
           });
         }
       });
@@ -366,6 +475,20 @@ export default function App() {
                 <span className={styles.liveIndicator}>● Live Node Link</span>
               </div>
             </div>
+            <div className={styles.searchBarWrapper}>
+              <svg onClick={handleSvgClick} xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className={styles.searchSvg} viewBox="0 0 16 16">
+                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+              </svg>
+              <input 
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search messages in channel..."
+                className={styles.headerSearchInput}
+              />
+              {searchQuery && <button onClick={() => setSearchQuery('')} className={styles.clearSearchBtn}>×</button>}
+            </div>
             <button onClick={() => signOut(auth)} className={styles.logoutBtn}>Log Out</button>
           </header>
 
@@ -429,91 +552,100 @@ export default function App() {
                   </div>
                 ) : (
                   <>
-                    {messages.map((msg, index) => {
-                      const isMe = msg.senderUid === user.uid;
-                      const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-                      const isMenuOpen = openMenuId === msg._id;
-
-                      return (
-                        <div key={msg._id || index} className={styles.messageRow} style={{ justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
-                          <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
-                            {!isMe && <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />}
-                            <div>
-                              {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
-                              <div className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}>
-                                {editingMessageId === msg._id ? (
-                                  /* 🌟 ACTIVE EDIT MODE: Render an interactive inline editor area fields */
-                                  <div className={styles.editFormInline}>
-                                    <input 
-                                      type="text" 
-                                      value={editingText} 
-                                      onChange={(e) => setEditingText(e.target.value)} 
-                                      className={styles.editInputInline}
-                                      autoFocus
-                                    />
-                                    <div className={styles.editActionsInline}>
-                                      <button onClick={() => handleEditMessage(msg._id)} className={styles.editSaveBtn}>Save</button>
-                                      <button onClick={() => { setEditingMessageId(null); setEditingText(''); }} className={styles.editCancelBtn}>Cancel</button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  /* STANDARD DISPLAY MODE: Show plain layout strings as normal */
-                                  <span className={styles.messageText}>
-                                    {msg.text !== "\u200B" && msg.text}
-
-                                    {/* 🌟 OPTIONAL UX CHECK: Show an "(edited)" tag if the message was modified */}
-                                    {msg.edited && <small className={styles.editedIndicatorTag}> (edited)</small>}
-
-                                    {msg.image && (
-                                      <img src={msg.image} alt="Sent asset" className={styles.chatImage} onClick={() => window.open(msg.image, '_blank')} />
-                                    )}
-                                  </span>
-                                )}
-                                <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
-
-                                {isMe && msg._id && (
-                                  <div className={`${styles.messageActionTrigger} ${isMenuOpen ? styles.forceVisible : ''}`}>
-                                    <button 
-                                      onClick={() => setOpenMenuId(isMenuOpen ? null : msg._id)} 
-                                      className={styles.optionsButton}
-                                      title="Message options"
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                        <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
-                                      </svg>
-                                    </button>
-
-                                    {isMenuOpen && (
-                                      <div className={styles.dropdownMenu}>
-                                        <button 
-                                          onClick={() => {
-                                            setOpenMenuId(null);
-                                            setDeleteModalMessageId(msg._id);
-                                          }}
-                                          className={styles.dropdownItemDelete}
-                                        >
-                                          Delete
-                                        </button>
-                                         <button 
-                                          onClick={() => {
-                                            setOpenMenuId(null); // Close the actions dropdown
-                                            setEditingMessageId(msg._id); // Activate the inline text input
-                                            setEditingText(msg.text); // Pre-fill with the old message content
-                                          }}
-                                          className={styles.dropdownItemEdit}
-                                        >
-                                          Edit
-                                        </button>
+                    {messages
+                      .filter((msg) => {
+                        // If the search bar is empty, display all messages naturally
+                        if (!searchQuery || !searchQuery.trim()) return true;
+                        // Only return messages that contain text matching the search term
+                        return msg.text && msg.text.toLowerCase().includes(searchQuery.toLowerCase());
+                      })
+                      .map((msg, index) => {
+                        const isMe = msg.senderUid === user.uid;
+                        const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                        const isMenuOpen = openMenuId === msg._id;
+                      
+                        return (
+                          <div key={msg._id || index} className={styles.messageRow} style={{ justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+                            <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
+                              {!isMe && <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />}
+                              <div>
+                                {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
+                                <div className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}>
+                                  {editingMessageId === msg._id ? (
+                                    /* 🌟 ACTIVE EDIT MODE: Render an interactive inline editor area fields */
+                                    <div className={styles.editFormInline}>
+                                      <input 
+                                        type="text" 
+                                        value={editingText} 
+                                        onChange={(e) => setEditingText(e.target.value)} 
+                                        className={styles.editInputInline}
+                                        autoFocus
+                                      />
+                                      <div className={styles.editActionsInline}>
+                                        <button onClick={() => handleEditMessage(msg._id)} className={styles.editSaveBtn}>Save</button>
+                                        <button onClick={() => { setEditingMessageId(null); setEditingText(''); }} className={styles.editCancelBtn}>Cancel</button>
                                       </div>
-                                    )}
-                                  </div>
-                                )}
+                                    </div>
+                                  ) : (
+                                    /* STANDARD DISPLAY MODE: Show plain layout strings as normal */
+                                    <span className={styles.messageText}>
+                                      {/* 🌟 UPGRADED: Wrap the text with the highlight utility function */}
+                                      {msg.text !== "\u200B" && highlightText(msg.text, searchQuery)}
+
+                                      {/* Show an "(edited)" tag if the message was modified */}
+                                      {msg.edited && <small className={styles.editedIndicatorTag}> (edited)</small>}
+
+                                      {msg.image && (
+                                        <img src={msg.image} alt="Sent asset" className={styles.chatImage} onClick={() => window.open(msg.image, '_blank')} />
+                                      )}
+                                    </span>
+                                  )}
+                                  <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
+                                
+                                  {isMe && msg._id && (
+                                    <div className={`${styles.messageActionTrigger} ${isMenuOpen ? styles.forceVisible : ''}`}>
+                                      <button 
+                                        onClick={() => setOpenMenuId(isMenuOpen ? null : msg._id)} 
+                                        className={styles.optionsButton}
+                                        title="Message options"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                          <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+                                        </svg>
+                                      </button>
+                                  
+                                      {isMenuOpen && (
+                                        <div className={styles.dropdownMenu}>
+                                          <button 
+                                            onClick={() => {
+                                              setOpenMenuId(null);
+                                              setDeleteModalMessageId(msg._id);
+                                            }}
+                                            className={styles.dropdownItemDelete}
+                                          >
+                                            Delete
+                                          </button>
+                                          <button 
+                                            onClick={() => {
+                                              setOpenMenuId(null); // Close the actions dropdown
+                                              setEditingMessageId(msg._id); // Activate the inline text input
+                                              setEditingText(msg.text); // Pre-fill with the old message content
+                                            }}
+                                            className={styles.dropdownItemEdit}
+                                          >
+                                            Edit
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+
                     {typingUser && (
                       <div className={styles.typingIndicatorRow}>
                         <div className={styles.typingBubble}>
