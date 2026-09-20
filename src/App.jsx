@@ -152,11 +152,11 @@ export default function App() {
       
       // 🌟 DEBUG STEP: Log every incoming message packet
       socket.on('receive_message', (message) => {
-        const activeRoom = roomRef.current;
+        const activeRoom = roomRef.current.toLowerCase(); // 🌟 Ensure activeRoom is lowercased
         console.log("📥 [DEBUG] receive_message fired:", message);
-        console.log("📥 [DEBUG] message.room:", message.room, "| activeRoom:", activeRoom);
-
+        
         const targetRoom = (message.room || activeRoom).toLowerCase();
+        console.log("📥 [DEBUG] targetRoom:", targetRoom, "| activeRoom:", activeRoom);
 
         if (targetRoom === activeRoom) {
           console.log("✅ [DEBUG] Message belongs to ACTIVE room. Appending to feed.");
@@ -166,7 +166,6 @@ export default function App() {
           console.log("🔔 [DEBUG] Message belongs to DIFFERENT room. Incrementing unread count for:", targetRoom);
           setUnreadCounts((prev) => {
             const updated = { ...prev, [targetRoom]: (prev[targetRoom] || 0) + 1 };
-            console.log("🔔 [DEBUG] New unreadCounts state:", updated);
             return updated;
           });
         } else {
