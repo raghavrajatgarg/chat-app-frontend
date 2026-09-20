@@ -511,7 +511,7 @@ html, body, .container {
   border: 1px solid var(--border-input);
   border-radius: 8px;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-  z-index: 50;
+  z-index: 5000;
   overflow: hidden;
   min-width: 110px;
 }
@@ -527,6 +527,7 @@ html, body, .container {
   font-size: 13px;
   font-weight: 500;
   transition: background 0.2s;
+  z-index: 5000;
 }
 
 .dropdownItemDelete:hover {
@@ -542,6 +543,7 @@ html, body, .container {
   text-align: left;
   cursor: pointer;
   font-size: 13px;
+  z-index: 5000;
   font-weight: 500;
   border-bottom: 1px solid var(--border-input);
 }
