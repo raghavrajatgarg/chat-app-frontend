@@ -58,10 +58,8 @@ export default function App() {
   // Sort UIDs consistently so both users generate the identical room identifier string
   const privateRoomId = [user.uid, targetUser.uid].sort().join('_');
 
-  setRoom(privateRoomId);
-  socket.emit('join_room', privateRoomId);
-  fetchMessagesForRoom(privateRoomId); // your existing function to load room history
-  setIsMobileMenuOpen(false);          // close mobile drawer if open
+  setRoom(privateRoomId);         // Triggers your existing useEffect to join room & fetch messages
+  setIsMobileMenuOpen(false);     // Close mobile drawer if open
 };
 
   useEffect(() => { roomRef.current = room; }, [room]);
