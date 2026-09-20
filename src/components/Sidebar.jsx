@@ -1,8 +1,25 @@
 import styles from '../App.module.css';
 
-export default function Sidebar({ roomsList, room, onSelectRoom, unreadCounts, activeUsers, isMobileMenuOpen }) {
+export default function Sidebar({ 
+  roomsList, 
+  room, 
+  onSelectRoom, 
+  onSelectPrivateChat, 
+  unreadCounts, 
+  activeUsers, 
+  allUsers = [], 
+  currentUser, 
+  isMobileMenuOpen 
+}) {
+  
+  // Helper to check if a specific user is currently online
+  const isUserOnline = (uid) => {
+    return activeUsers.some((activeUser) => activeUser.uid === uid);
+  };
+
   return (
     <aside className={`${styles.sidebar} ${isMobileMenuOpen ? styles.sidebarOpen : ''}`}>
+      {/* Channels Section */}
       <div className={styles.sidebarSection}>
         <h4 className={styles.sidebarTitle}>Channels</h4>
         <div className={styles.roomList}>
@@ -21,16 +38,55 @@ export default function Sidebar({ roomsList, room, onSelectRoom, unreadCounts, a
         </div>
       </div>
 
+      {/* Direct Messages / All Users Section */}
       <div className={styles.sidebarSection}>
-        <h4 className={styles.sidebarTitle}>Online users</h4>
+        <h4 className={styles.sidebarTitle}>Direct Messages</h4>
         <div className={styles.userList}>
-          {activeUsers.map((u) => (
-            <div key={u.uid} className={styles.userItem}>
-              <img src={u.avatar || 'https://placeholder.com'} alt="" className={styles.userAvatar} />
-              <span className={styles.userName}>{u.name}</span>
-              <div className={styles.statusDot} />
-            </div>
-          ))}
+          {allUsers
+            .filter((u) => u.uid !== currentUser?.uid) // Don't show yourself in the DM list
+            .map((u) => {
+              const online = isUserOnline(u.uid);
+              
+              // Generate the private room ID to check if this DM is currently active
+              const privateRoomId = [currentUser?.uid, u.uid].sort().join('_');
+              const isActive = room === privateRoomId;
+
+              return (
+                <button
+                  key={u.uid}
+                  onClick={() => onSelectPrivateChat(u)}
+                  className={`${styles.roomBtn} ${isActive ? styles.roomBtnActive : ''}`}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', overflow: 'hidden' }}>
+                    {/* Avatar with absolute green dot indicator */}
+                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                      <img 
+                        src={u.avatar || 'https://placeholder.com'} 
+                        alt="" 
+                        className={styles.userAvatar} 
+                        style={{ width: '28px', height: '28px' }}
+                      />
+                      {online && (
+                        <div 
+                          className={styles.statusDot} 
+                          style={{ 
+                            position: 'absolute', 
+                            bottom: 0, 
+                            right: 0, 
+                            width: '8px', 
+                            height: '8px', 
+                            border: '2px solid var(--bg-secondary)' 
+                          }} 
+                        />
+                      )}
+                    </div>
+                    <span className={styles.userName} style={{ textAlign: 'left', flex: 1 }}>
+                      {u.name}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
         </div>
       </div>
     </aside>

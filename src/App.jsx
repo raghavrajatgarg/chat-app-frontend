@@ -36,6 +36,7 @@ export default function App() {
   const [editingMessageId, setEditingMessageId] = useState(null); 
   const [editingText, setEditingText] = useState(''); 
   const [searchQuery, setSearchQuery] = useState('');
+  const [allRegisteredUsers, setAllRegisteredUsers] = useState([]);
 
   const roomRef = useRef(room);
   const socketRef = useRef(null);
@@ -44,6 +45,24 @@ export default function App() {
   const typingTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
   const feedRef = useRef(null); 
+
+  useEffect(() => {
+  if (!user) return;
+  fetch(`${BACKEND_URL}/api/users`)
+    .then((res) => res.json())
+    .then((data) => setAllRegisteredUsers(data))
+    .catch((err) => console.error("Failed to fetch registered users:", err));
+  }, [user]);
+
+  const handleOpenPrivateChat = (targetUser) => {
+  // Sort UIDs consistently so both users generate the identical room identifier string
+  const privateRoomId = [user.uid, targetUser.uid].sort().join('_');
+
+  setRoom(privateRoomId);
+  socket.emit('join_room', privateRoomId);
+  fetchMessagesForRoom(privateRoomId); // your existing function to load room history
+  setIsMobileMenuOpen(false);          // close mobile drawer if open
+};
 
   useEffect(() => { roomRef.current = room; }, [room]);
 
@@ -352,8 +371,11 @@ export default function App() {
               roomsList={ROOMS_LIST}
               room={room}
               onSelectRoom={handleSelectRoom}
+              onSelectPrivateChat={handleOpenPrivateChat}
               unreadCounts={unreadCounts}
               activeUsers={activeUsers}
+              allUsers={allRegisteredUsers}
+              currentUser={user}
               isMobileMenuOpen={isMobileMenuOpen}
             />
 
