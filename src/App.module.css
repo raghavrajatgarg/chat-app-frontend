@@ -1332,3 +1332,8 @@ html, body, .container {
     display: block;
   }
 }
+@media (max-width:768px){
+   .sidebar{
+      z-index:100000;
+   }
+}
