@@ -37,6 +37,8 @@ export default function App() {
   const [editingText, setEditingText] = useState(''); 
   const [searchQuery, setSearchQuery] = useState('');
   const [allRegisteredUsers, setAllRegisteredUsers] = useState([]);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [infoModalMessage, setInfoModalMessage] = useState(null);
 
   const roomRef = useRef(room);
   const socketRef = useRef(null);
@@ -46,6 +48,41 @@ export default function App() {
   const messagesEndRef = useRef(null);
   const feedRef = useRef(null); 
 
+// Automatically mark incoming messages as read if they belong to the current room
+  useEffect(() => {
+    if (!user || messages.length === 0) return;
+    
+    const unreadMessageIds = messages
+      .filter((msg) => msg.senderUid !== user.uid && (!msg.readBy || !msg.readBy.includes(user.uid)))
+      .map((msg) => msg._id);
+
+    if (unreadMessageIds.length > 0 && socketRef.current) {
+      socketRef.current.emit('mark_messages_read', {
+        messageIds: unreadMessageIds,
+        userId: user.uid,
+        room
+      });
+    }
+  }, [messages, user, room]);
+
+  // Listen for read receipt updates from other users in real time
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket) return;
+
+    const handleReadUpdate = ({ messageIds, userId }) => {
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) =>
+          messageIds.includes(msg._id)
+            ? { ...msg, readBy: [...(msg.readBy || []), userId] }
+            : msg
+        )
+      );
+    };
+
+    socket.on('messages_read_update', handleReadUpdate);
+    return () => { socket.off('messages_read_update', handleReadUpdate); };
+  }, []);
   useEffect(() => {
   if (!user) return;
   fetch(`${BACKEND_URL}/api/users`)
@@ -192,40 +229,39 @@ export default function App() {
   }, [user, playAlertSound]);
 
   // Handle Room Switching and Resetting Unread Counts with Debug Logs
-  useEffect(() => {
-    if (!user) return;
-    console.log("🔄 [DEBUG] Switching room to:", room);
-    setRoomLoading(true);
-    setTypingUser(null);
-    
-    // Clear unread count for current room
-    setUnreadCounts((prev) => {
-      const updated = { ...prev, [room]: 0 };
-      console.log("🔄 [DEBUG] Cleared unread count for active room. State:", updated);
-      return updated;
+useEffect(() => {
+  if (!user) return;
+  console.log("🔄 [DEBUG] Switching room to:", room);
+  setRoomLoading(true);
+  setTypingUser(null);
+
+  setUnreadCounts((prev) => {
+    const updated = { ...prev, [room]: 0 };
+    return updated;
+  });
+
+  const controller = new AbortController();
+  // When messages are loaded or viewed
+  // Fetch only the latest 30 messages for fast initial load
+  fetch(`${BACKEND_URL}/api/messages?room=${room}&limit=30`, { signal: controller.signal })
+    .then((res) => res.json())
+    .then((data) => {
+      setMessages(data);
+      setRoomLoading(false);
+    })
+    .catch((err) => {
+      if (err.name !== 'AbortError') {
+        console.error("Error loading chat history:", err);
+        setRoomLoading(false);
+      }
     });
 
-    const controller = new AbortController();
+  if (socketRef.current) {
+    socketRef.current.emit('join_room', room);
+  }
 
-    fetch(`${BACKEND_URL}/api/messages?room=${room}`, { signal: controller.signal })
-      .then((res) => res.json())
-      .then((data) => {
-        setMessages(data);
-        setRoomLoading(false);
-      })
-      .catch((err) => {
-        if (err.name !== 'AbortError') {
-          console.error("Error loading chat history:", err);
-          setRoomLoading(false);
-        }
-      });
-
-    if (socketRef.current) {
-      socketRef.current.emit('join_room', room);
-    }
-
-    return () => controller.abort();
-  }, [room, user]);
+  return () => controller.abort();
+}, [room, user]);
 
   const autoScrollRef = useEffect(() => {
     if (!searchQuery.trim()) {
@@ -233,10 +269,36 @@ export default function App() {
     }
   }, [messages, typingUser, searchQuery]);
 
-  const handleFeedScroll = (e) => {
-    const { scrollTop, scrollHeight, clientHeight } = e.target;
-    setShowScrollBtn(scrollHeight - scrollTop - clientHeight > 300);
-  };
+const handleFeedScroll = (e) => {
+  const { scrollTop, scrollHeight, clientHeight } = e.target;
+  setShowScrollBtn(scrollHeight - scrollTop - clientHeight > 300);
+
+  // If user scrolls to the top of the container and there are messages to look back on
+  if (scrollTop === 0 && messages.length > 0 && !isFetchingMore && !roomLoading) {
+    setIsFetchingMore(true);
+    const oldestMessageTimestamp = messages[0].createdAt;
+    const container = e.target;
+    const previousScrollHeight = container.scrollHeight;
+
+    fetch(`${BACKEND_URL}/api/messages?room=${room}&limit=30&before=${oldestMessageTimestamp}`)
+      .then((res) => res.json())
+      .then((olderMessages) => {
+        if (olderMessages.length > 0) {
+          setMessages((prev) => [...olderMessages, ...prev]);
+
+          // Maintain scroll position so the view doesn't jump to the top
+          requestAnimationFrame(() => {
+            container.scrollTop = container.scrollHeight - previousScrollHeight;
+          });
+        }
+        setIsFetchingMore(false);
+      })
+      .catch((err) => {
+        console.error("Failed to load older messages:", err);
+        setIsFetchingMore(false);
+      });
+  }
+};
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -396,6 +458,7 @@ export default function App() {
                 setDeleteModalMessageId={setDeleteModalMessageId}
                 highlightText={highlightText}
                 messagesEndRef={messagesEndRef}
+                setInfoModalMessage={setInfoModalMessage}
               />
               
               <TypingIndicator typingUser={typingUser} />
@@ -440,6 +503,35 @@ export default function App() {
             }, 500);
           }}
         />
+      )}
+      {infoModalMessage && (
+        <div className={styles.modalOverlay} onClick={() => setInfoModalMessage(null)}>
+          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+            <h3>Message Info</h3>
+            <p className={styles.modalSubtext}>Read by the following users:</p>
+            
+            <div className={styles.modalUserList}>
+              {infoModalMessage.readBy && infoModalMessage.readBy.length > 0 ? (
+                allRegisteredUsers
+                  .filter((u) => infoModalMessage.readBy.includes(u.uid) && u.uid !== infoModalMessage.senderUid)
+                  .map((u) => (
+                    <div key={u.uid} className={styles.modalUserItem}>
+                      <img src={u.avatar || 'https://placeholder.com'} alt="" className={styles.userAvatar} />
+                      <span>{u.name}</span>
+                    </div>
+                  ))
+              ) : (
+                <p className={styles.noReadsText}>No one has read this message yet.</p>
+              )}
+            </div>
+            <button 
+              className={styles.modalCloseBtn} 
+              onClick={() => setInfoModalMessage(null)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

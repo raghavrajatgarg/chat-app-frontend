@@ -1,30 +1,40 @@
 /* ==========================================================================
-   🌟 APP MODULE CSS - OPTIMIZED & CONSOLIDATED
+   🌟 APP MODULE CSS - MODERN LUXURY & PERFORMANCE OPTIMIZED
    ========================================================================== */
 
 :root {
-  --bg-app: #0a0e17;
-  --bg-card: #111827;
-  --bg-card-hover: #1f2937;
-  --bg-input: #1f2937;
-  --bg-deep: #0d111a;
-  --border-color: #1f2937;
-  --border-input: #374151;
-  --accent-blue: #2563eb;
-  --accent-blue-hover: #1d4ed8;
+  --bg-app: #06080f;
+  /* Slightly higher opacity solid glass fallback to eliminate multi-pass lag */
+  --bg-card: rgba(13, 17, 26, 0.92);
+  --bg-card-hover: rgba(26, 32, 44, 0.95);
+  --bg-input: rgba(15, 23, 42, 0.85);
+  --bg-deep: #05070c;
+  --border-color: rgba(255, 255, 255, 0.07);
+  --border-input: rgba(255, 255, 255, 0.12);
+  --accent-blue: #3b82f6;
+  --accent-blue-hover: #2563eb;
   --accent-emerald: #10b981;
   --accent-red: #ef4444;
-  --text-main: #e2e8f0;
-  --text-muted: #9ca3af;
-  --text-subtle: #94a3b8;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --text-subtle: #64748b;
   --font-stack: sans-serif;
+  
+  /* Reduced blur radius from 16px to 10px for instant GPU rendering */
+  --glass-blur: blur(10px); 
 }
 
-/* Global Interactive Resets */
+/* Global Interactive Resets & Smooth Font Polish */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 button, 
 a, 
 [role="button"] {
   -webkit-tap-highlight-color: transparent;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @media (max-width: 768px) {
@@ -72,8 +82,12 @@ html, body, .container {
   width: 100%;
   margin: 0 auto;
   background: var(--bg-card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   border-left: 1px solid var(--border-color);
   border-right: 1px solid var(--border-color);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  transform: translateZ(0); /* Forces dedicated GPU layer */
 }
 
 .mainContent {
@@ -93,7 +107,7 @@ html, body, .container {
 }
 
 /* ==========================================================================
-   2. Scrollbar Hiding & Utilities
+   2. Scrollbar Hiding & Luxury Utilities
    ========================================================================== */
 
 .messageFeed, .sidebar, .userList, .roomList {
@@ -120,32 +134,37 @@ html, body, .container {
   justify-content: center;
   flex: 1;
   padding: 20px;
+  background: radial-gradient(circle at center, rgba(59, 130, 246, 0.08) 0%, transparent 70%);
 }
 
 .loginCard {
-  background: var(--bg-card);
+  background: rgba(15, 23, 42, 0.98);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 40px;
   max-width: 400px;
   width: 100%;
-  border-radius: 16px;
-  border: 1px solid var(--border-color);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  border-radius: 20px;
+  border: 1px solid var(--border-input);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.6);
   text-align: center;
 }
 
 .title {
   color: #fff;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   font-size: 32px;
-  letter-spacing: 0.4px;
+  letter-spacing: -0.5px;
+  font-weight: 700;
 }
 
 .subtitle {
   color: var(--text-muted);
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  font-size: 14px;
 }
 
 .googleBtn {
@@ -156,24 +175,25 @@ html, body, .container {
   width: 100%;
   max-width: 280px;
   padding: 12px 20px;
-  font-size: 16px;
-  background: #ffffff;
-  color: #5f6368;
-  border: 1px solid #dadce0;
-  border-radius: 8px;
-  font-weight: 500;
+  font-size: 15px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s, box-shadow 0.2s;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .googleBtn:hover {
-  background-color: #f8f9fa;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  background: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);
 }
 
 /* ==========================================================================
-   4. Header & Navigation
+   4. Header & Navigation (Optimized: No redundant blur)
    ========================================================================== */
 
 .header {
@@ -181,8 +201,11 @@ html, body, .container {
   justify-content: space-between;
   align-items: center;
   padding: 16px 24px;
-  background: var(--bg-card);
+  background: rgba(13, 17, 26, 0.96); /* Solid glass fallback */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border-bottom: 1px solid var(--border-color);
+  z-index: 10;
 }
 
 .headerLeft {
@@ -197,6 +220,7 @@ html, body, .container {
   border-radius: 50%;
   border: 2px solid var(--accent-blue);
   object-fit: cover;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
 }
 
 .headerUserInfo {
@@ -217,18 +241,23 @@ html, body, .container {
   display: flex;
   align-items: center;
   gap: 4px;
+  font-weight: 500;
 }
 
 .logoutBtn {
   padding: 6px 14px;
-  background: transparent;
+  background: rgba(239, 68, 68, 0.1);
   color: var(--accent-red);
-  border: 1px solid var(--accent-red);
-  border-radius: 6px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
-  font-weight: bold;
-  transition: 0.2s;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.logoutBtn:hover {
+  background: rgba(239, 68, 68, 0.2);
 }
 
 .hamburgerButton {
@@ -241,15 +270,18 @@ html, body, .container {
   z-index: 1001;
   align-items: center;
   justify-content: center;
+  color: var(--text-main);
 }
 
 /* ==========================================================================
-   5. Sidebar & Drawer
+   5. Sidebar & Drawer (Optimized: No redundant blur)
    ========================================================================== */
 
 .sidebar {
   width: 240px;
-  background: var(--bg-card);
+  background: rgba(13, 17, 26, 0.96); /* Solid glass fallback */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
@@ -276,16 +308,17 @@ html, body, .container {
 .sidebarTitle {
   margin: 0 0 10px 0;
   color: var(--text-subtle);
-  font-size: 12px;
-  letter-spacing: 0.5px;
+  font-size: 11px;
+  letter-spacing: 1px;
   text-transform: uppercase;
+  font-weight: 700;
 }
 
 .userList {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   padding-right: 4px;
 }
 
@@ -293,7 +326,7 @@ html, body, .container {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   padding-right: 4px;
 }
 
@@ -301,12 +334,20 @@ html, body, .container {
   display: flex;
   align-items: center;
   gap: 10px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.userItem:hover {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .userAvatar {
   width: 28px;
   height: 28px;
   border-radius: 50%;
+  object-fit: cover;
 }
 
 .userName {
@@ -323,6 +364,7 @@ html, body, .container {
   background: var(--accent-emerald);
   border-radius: 50%;
   margin-left: auto;
+  box-shadow: 0 0 8px var(--accent-emerald);
 }
 
 .roomBtn {
@@ -335,10 +377,10 @@ html, body, .container {
   color: var(--text-muted);
   text-align: left;
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 14px;
-  transition: background 0.2s, color 0.2s;
+  transition: all 0.2s ease;
 }
 
 .roomBtn:hover {
@@ -350,6 +392,7 @@ html, body, .container {
   background: var(--accent-blue);
   color: #fff;
   font-weight: 500;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .roomBtnActive:hover {
@@ -382,7 +425,8 @@ html, body, .container {
 .messageContentWrapper {
   display: flex;
   gap: 10px;
-  max-width: 75%;
+  max-width:75%;
+    align-items: flex-start; 
 }
 
 .messageAvatar {
@@ -390,6 +434,7 @@ html, body, .container {
   height: 32px;
   border-radius: 50%;
   margin-top: 2px;
+  object-fit: cover;
 }
 
 .messageSenderName {
@@ -399,50 +444,67 @@ html, body, .container {
   margin-bottom: 4px;
   margin-left: 4px;
   text-align: left;
+  font-weight: 500;
 }
 
 .messageBubbleBase {
   color: #fff;
-  padding: 8px 12px;
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+  padding: 5px 14px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
   word-break: break-word;
-  font-size: 15px;
-  line-height: 1.4;
+  font-size: 14px;
+  line-height: 1.5;
   position: relative;
-  display: inline-flex; /* Keeps it tightly bound to content */
-  align-items: flex-end;
-  gap: 12px;
-  width: fit-content;    /* 🌟 CRUCIAL: Stops it from expanding full width unnecessarily */
+  display: flex;
+  flex-direction: column; /* 🌟 Stacks image, text, and elements vertically */
+  align-items: flex-start; 
+  gap: 8px;
+  width: fit-content; /* 🌟 Replaces max-content to prevent forced wide boxes */
   max-width: 100%;
+  text-align: left;
 }
 
 .messageBubbleMe {
   background: var(--accent-blue);
-  border-radius: 8px 8px 2px 8px;
+  border-radius: 12px 12px 2px 12px;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25);
 }
 
 .messageBubbleOther {
-  background: #1e293b;
-  border-radius: 8px 8px 8px 2px;
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid var(--border-color);
+  border-radius: 12px 12px 12px 2px;
+}
+
+/* 🌟 New container for text and timestamp to sit side-by-side */
+.messageFooterRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
 }
 
 .messageText {
   flex-grow: 1;
-  margin-right: 0;       /* Removes artificial spacing */
+  word-break: break-word;
 }
 
-
+/* 🌟 Reset timestamp styles so they sit naturally in the row */
 .messageTimestampMe,
 .messageTimestampOther {
   display: inline-block;
   font-size: 10px;
-  margin-left: 2px;
   user-select: none;
-  opacity: 50%;
+  opacity: 0.6;
   white-space: nowrap;
+  margin-bottom: 0;
+  margin-left: auto; /* Pushes the timestamp to the far right of the text */
 }
 
 .messageActionTrigger {
+
   position: absolute;
   top: 2px;
   right: 6px;
@@ -472,8 +534,8 @@ html, body, .container {
   border: none;
   color: #ffffff;
   cursor: pointer;
-  width: 18;
-  height: 18px;
+  width: 28px;
+  height: 28px;
   border-radius: 4px;
   display: flex;
   align-items: center;
@@ -483,6 +545,7 @@ html, body, .container {
   transition: color 0.2s;
   scale: 0.7;
   opacity: 0.85 !important;
+  margin-top: -5px !important;
 }
 
 .optionsButton:hover {
@@ -497,6 +560,7 @@ html, body, .container {
   margin-top: 8px;
   display: block;
   cursor: pointer;
+  object-fit: cover;
 }
 
 /* ==========================================================================
@@ -507,34 +571,42 @@ html, body, .container {
   position: absolute;
   right: 0;
   top: 28px;
-  background: var(--bg-card-hover);
+  background: rgba(15, 23, 42, 0.98);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border-input);
-  border-radius: 8px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  border-radius: 10px;
+  box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.6);
   z-index: 5000;
   overflow: hidden;
   min-width: 110px;
 }
 
 .dropdownItemDelete {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   width: 100%;
   padding: 8px 12px;
   background: transparent;
   border: none;
-  color: #f87171;
+  color: var(--accent-red);
   text-align: left;
   cursor: pointer;
   font-size: 13px;
-  font-weight: 500;
-  transition: background 0.2s;
   z-index: 5000;
+  font-weight: 500;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .dropdownItemDelete:hover {
-  background: var(--border-input);
+  background: rgba(239, 68, 68, 0.15);
 }
 
 .dropdownItemEdit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   width: 100%;
   padding: 8px 12px;
   background: transparent;
@@ -545,11 +617,11 @@ html, body, .container {
   font-size: 13px;
   z-index: 5000;
   font-weight: 500;
-  border-bottom: 1px solid var(--border-input);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .dropdownItemEdit:hover {
-  background: var(--border-input);
+  background: rgba(255, 255, 255, 0.05);
   color: #fff;
 }
 
@@ -562,11 +634,31 @@ html, body, .container {
   padding: 4px 0;
   box-sizing: border-box;
 }
+.dropdownItemInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--accent-blue);
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  z-index: 5000;
+  font-weight: 500;
+  border-bottom: 1px solid var(--border-color);
+  transition: 0.1s linear;
+}
+.dropdownItemInfo:hover{
+  background: rgba(59, 130, 246, 0.15);
+}
 
 .editInputInline {
-  background: #0f172a !important;
+  background: rgba(15, 23, 42, 0.95) !important;
   color: #ffffff !important;
-  border: 1px solid #3b82f6 !important;
+  border: 1px solid var(--accent-blue) !important;
   border-radius: 8px !important;
   padding: 8px 12px !important;
   font-size: 14px !important;
@@ -602,7 +694,7 @@ html, body, .container {
 }
 
 .editCancelBtn {
-  background: #4b5563 !important;
+  background: rgba(255, 255, 255, 0.1) !important;
   color: white !important;
   border: none !important;
   padding: 6px 14px !important;
@@ -614,7 +706,7 @@ html, body, .container {
 }
 
 .editCancelBtn:hover {
-  background: var(--border-input) !important;
+  background: rgba(255, 255, 255, 0.2) !important;
 }
 
 .editedIndicatorTag {
@@ -626,26 +718,34 @@ html, body, .container {
 }
 
 /* ==========================================================================
-   8. Chat Input, Form & Search
+   8. Chat Input, Form & Search (Optimized: No redundant blur)
    ========================================================================== */
 
 .chatForm {
   display: flex;
   padding: 15px;
-  background: var(--bg-card);
+  background: rgba(13, 17, 26, 0.96); /* Solid glass fallback */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border-top: 1px solid var(--border-color);
   gap: 12px;
 }
 
 .chatInput {
   flex: 1;
-  padding: 10px 20px;
-  border-radius: 15px;
+  padding: 12px 20px;
+  border-radius: 12px;
   border: 1px solid var(--border-input);
-  font-size: 13px;
+  font-size: 14px;
   outline: none;
   background: var(--bg-input);
   color: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.chatInput:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
 .sendBtn {
@@ -655,13 +755,19 @@ html, body, .container {
   background: var(--accent-blue);
   color: #fff;
   border: none;
-  border-radius: 15px;
+  border-radius: 12px;
   font-size: 13px;
   cursor: pointer;
-  transition: background 0.2s;
-  box-shadow: 0 4px 12px rgba(37,99,235,0.2);
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(59,99,235,0.3);
   align-items: center;
   justify-content: center;
+  font-weight: 600;
+}
+
+.sendBtn:hover {
+  background: var(--accent-blue-hover);
+  transform: translateY(-1px);
 }
 
 .searchBarWrapper {
@@ -673,24 +779,21 @@ html, body, .container {
   margin: 0 15px;
   gap: 2px;
   border: 1px solid var(--border-input);
-  border-radius: 5px;
+  border-radius: 8px;
   padding-left: 9px;
   flex-direction: row;
+  background: var(--bg-input);
 }
 
 .headerSearchInput {
   width: 100%;
-  background: var(--bg-input);
+  background: transparent;
   color: #fff;
-  border: 1px solid var(--border-input);
-  border-radius: 0 5px 5px 0;
+  border: none;
+  border-radius: 0 8px 8px 0;
   padding: 8px 16px;
   font-size: 14px;
   outline: none;
-}
-
-.headerSearchInput:focus {
-  border-color: var(--accent-blue);
 }
 
 .clearSearchBtn {
@@ -704,20 +807,20 @@ html, body, .container {
 }
 
 .searchTextHighlight {
-  background-color: yellow !important;
-  color: #0f172a !important;
-  padding: 0 1px;
+  background-color: rgba(234, 179, 8, 0.3) !important;
+  color: #fde047 !important;
+  padding: 0 2px;
   border-radius: 4px;
   font-weight: 600;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  opacity: 0.7;
+  border: 1px solid rgba(234, 179, 8, 0.4);
 }
 
 .searchSvg {
-  width: 25px;
-  height: 25px;
-  margin-right: 7px;
+  width: 20px;
+  height: 20px;
+  margin-right: 4px;
   cursor: pointer;
+  opacity: 0.7;
 }
 
 /* ==========================================================================
@@ -727,8 +830,9 @@ html, body, .container {
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(4px);
+  background: rgba(5, 7, 12, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -736,16 +840,18 @@ html, body, .container {
 }
 
 .modalCard {
-  background: var(--bg-card-hover);
+  background: rgba(15, 23, 42, 0.98);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   padding: 24px;
   border-radius: 16px;
   width: 100%;
   max-width: 360px;
   text-align: center;
   border: 1px solid var(--border-input);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
   color: #fff;
-  animation: modalScaleUp 0.2s ease-out;
+  animation: modalScaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .modalTitle {
@@ -779,9 +885,9 @@ html, body, .container {
 .modalCancelBtn {
   flex: 1;
   padding: 10px;
-  background: var(--border-input);
-  border: none;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-input);
+  border-radius: 10px;
   color: #f3f4f6;
   font-weight: 500;
   cursor: pointer;
@@ -789,7 +895,7 @@ html, body, .container {
 }
 
 .modalCancelBtn:hover {
-  background: #4b5563;
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .modalDeleteBtn {
@@ -797,15 +903,16 @@ html, body, .container {
   padding: 10px;
   background: var(--accent-red);
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   color: #fff;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: opacity 0.2s;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
 .modalDeleteBtn:hover {
-  background: #dc2626;
+  opacity: 0.9;
 }
 
 .previewContainer {
@@ -827,7 +934,8 @@ html, body, .container {
   max-width: 100%;
   max-height: 62vh;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 
 .removePreviewBtn {
@@ -874,10 +982,10 @@ html, body, .container {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 0.5px rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.15);
   z-index: 40;
   transition: transform 0.2s, background-color 0.2s;
-  animation: popIn 0.2s ease-out;
+  animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .scrollToBottomBtn:hover {
@@ -889,7 +997,7 @@ html, body, .container {
   width: 32px;
   height: 32px;
   border: 3px solid rgba(255, 255, 255, 0.1);
-  border-top-color: #3b82f6;
+  border-top-color: var(--accent-blue);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -924,6 +1032,7 @@ html, body, .container {
   border-radius: 9999px;
   min-width: 18px;
   text-align: center;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
 }
 
 .typingIndicatorRow {
@@ -942,8 +1051,10 @@ html, body, .container {
 
 .typingBubble {
   background-color: var(--bg-input);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
   padding: 10px 14px;
-  border-radius: 16px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -996,8 +1107,8 @@ html, body, .container {
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(2px);
+  background: rgba(5, 7, 12, 0.7);
+  backdrop-filter: blur(4px);
   z-index: 999;
   opacity: 0;
   pointer-events: none;
@@ -1016,11 +1127,14 @@ html, body, .container {
     left: 0;
     width: 260px !important;
     height: 100dvh;
-    background-color: var(--bg-card) !important;
+    background-color: rgba(13, 17, 26, 0.98) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     z-index: 1000;
     transform: translateX(-100%);
-    transition: transform 0.3s ease-in-out;
-    box-shadow: 5px 0 25px rgba(0, 0, 0, 0.5);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.7);
+    will-change: transform;
   }
 
   .sidebarOpen {
@@ -1029,6 +1143,7 @@ html, body, .container {
 
   .hamburgerButton {
     display: flex !important;
+    color: white !important;
     align-items: center;
     justify-content: center;
   }
@@ -1037,27 +1152,30 @@ html, body, .container {
     display: none !important;
   }
 
+  /* 🌟 Clean up bubble layout for mobile to prevent overflow */
+  .messageContentWrapper {
+    max-width: 85% !important; /* Give messages proper breathing room */
+  }
+
   .messageBubbleBase {
-    scale: 0.85;
+    font-size: 13px !important;
+    padding: 8px 12px !important;
+    max-width: 100% !important;
   }
 
   .messageAvatar {
-    scale: 0.85;
-  }
-
-  .messageBubbleOther {
-    margin-left: -15px;
-    margin-top: -20px;
+    width: 28px;
+    height: 28px;
   }
 
   .chatInput {
-    padding: 5px 12px;
+    padding: 8px 12px;
     border-radius: 10px;
     font-size: 13px;
   }
 
   .sendBtn {
-    padding: 5px 15px;
+    padding: 8px 15px;
     border-radius: 10px;
   }
 

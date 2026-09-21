@@ -66,23 +66,15 @@ export default function Sidebar({
                         className={styles.userAvatar} 
                         style={{ width: '28px', height: '28px' }}
                       />
-                      {online && (
-                        <div 
-                          className={styles.statusDot} 
-                          style={{ 
-                            position: 'absolute', 
-                            bottom: 0, 
-                            right: 0, 
-                            width: '8px', 
-                            height: '8px', 
-                            border: '2px solid var(--bg-secondary)' 
-                          }} 
-                        />
-                      )}
                     </div>
                     <span className={styles.userName} style={{ textAlign: 'left', flex: 1 }}>
                       {u.name}
                     </span>
+                                         {online && (
+                        <div 
+                          className={styles.statusDot} 
+                        />
+                      )}
                   </div>
                 </button>
               );
