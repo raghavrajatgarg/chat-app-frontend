@@ -1155,6 +1155,7 @@ html, body, .container {
     color: white !important;
     align-items: center;
     justify-content: center;
+    z-index: 999999999999 !important;
   }
 
   .headerLeft {
