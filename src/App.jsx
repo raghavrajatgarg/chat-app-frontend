@@ -39,6 +39,7 @@ export default function App() {
   const [allRegisteredUsers, setAllRegisteredUsers] = useState([]);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [infoModalMessage, setInfoModalMessage] = useState(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const roomRef = useRef(room);
   const socketRef = useRef(null);
@@ -48,6 +49,10 @@ export default function App() {
   const messagesEndRef = useRef(null);
   const feedRef = useRef(null); 
 
+  // 1. Create a filtered list based on the search query
+const filteredMessages = searchQuery.trim()
+  ? messages.filter((msg) => msg.text && msg.text.toLowerCase().includes(searchQuery.toLowerCase()))
+  : messages;
 // Automatically mark incoming messages as read if they belong to the current room
   useEffect(() => {
     if (!user || messages.length === 0) return;
@@ -417,7 +422,7 @@ const handleFeedScroll = (e) => {
             searchInputRef={searchInputRef}
             handleSvgClick={() => searchInputRef.current?.focus()}
             onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            onLogout={() => signOut(auth)}
+            onOpenSettings={() => setIsSettingsOpen(true)}
           />
 
           <div className={styles.mainContent}>
@@ -440,7 +445,7 @@ const handleFeedScroll = (e) => {
 
             <div className={styles.chatWindow} ref={feedRef} onScroll={handleFeedScroll}>
               <ChatFeed 
-                messages={messages}
+                messages={filteredMessages}
                 user={user}
                 searchQuery={searchQuery}
                 roomLoading={roomLoading}
@@ -460,7 +465,6 @@ const handleFeedScroll = (e) => {
                 messagesEndRef={messagesEndRef}
                 setInfoModalMessage={setInfoModalMessage}
               />
-              
               <TypingIndicator typingUser={typingUser} />
 
               {showScrollBtn && (
@@ -509,7 +513,7 @@ const handleFeedScroll = (e) => {
           <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
             <h3>Message Info</h3>
             <p className={styles.modalSubtext}>Read by the following users:</p>
-            
+
             <div className={styles.modalUserList}>
               {infoModalMessage.readBy && infoModalMessage.readBy.length > 0 ? (
                 allRegisteredUsers
@@ -533,6 +537,35 @@ const handleFeedScroll = (e) => {
           </div>
         </div>
       )}
+      {isSettingsOpen && (
+  <div className={styles.modalOverlay} onClick={() => setIsSettingsOpen(false)}>
+    <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+      <h3>User Settings</h3>
+      <div style={{ margin: '20px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+        <img src={user?.photoURL} alt="" style={{ width: '60px', height: '60px', borderRadius: '50%' }} />
+        <p style={{ fontWeight: 600, color: '#fff' }}>{user?.displayName}</p>
+        <p style={{ fontSize: '12px', color: '#94a3b8' }}>{user?.email}</p>
+      </div>
+      <div style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
+        <button 
+          className={styles.modalDeleteBtn} 
+          onClick={() => {
+            setIsSettingsOpen(false);
+            signOut(auth);
+          }}
+        >
+          Log Out
+        </button>
+        <button 
+          className={styles.modalCancelBtn} 
+          onClick={() => setIsSettingsOpen(false)}
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
