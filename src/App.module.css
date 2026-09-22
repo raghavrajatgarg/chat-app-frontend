@@ -472,21 +472,20 @@ html, body, .container {
   max-width: 100%;
   text-align: left;
  z-index: 9999;
- margin-bottom: 2px;
 }
 
 .messageBubbleMe {
   background: var(--accent-blue);
   border-radius: 12px 12px 2px 12px;
   box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25);
-  margin-bottom: 1dvh;
-  margin-top: 1dvh  ;
+  margin: 5px;
 }
 
 .messageBubbleOther {
   background: rgba(30, 41, 59, 0.9);
   border: 1px solid var(--border-color);
   border-radius: 12px 12px 12px 2px;
+  margin-bottom: 15px;
 }
 
 /* 🌟 New container for text and timestamp to sit side-by-side */
@@ -590,9 +589,9 @@ html, body, .container {
   border: 1px solid var(--border-input);
   border-radius: 10px;
   box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.6);
-  z-index: 5000;
+  z-index: 500000 !important;
   overflow: hidden;
-  min-width: 110px;
+  width: 220px;
 }
 
 .dropdownItemDelete {
@@ -1506,23 +1505,25 @@ html, body {
 }
 
 .threadReplyTriggerBtn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 11px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 7px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--accent-emerald);
+  text-align: left;
   cursor: pointer;
-  margin-top: 4px;
-  padding: 2px 4px;
-  border-radius: 4px;
-  transition: all 0.2s;
+  font-size: 13px;
+  z-index: 5000;
+  font-weight: 500;
+  border-bottom: 1px solid var(--border-color);
+  transition: 0.2s;
 }
 
 .threadReplyTriggerBtn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  background: rgba(16, 185, 129, 0.15);
 }
 
 @keyframes slideInRight {
