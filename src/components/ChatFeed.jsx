@@ -1,6 +1,5 @@
-
+import { useRef, useEffect, useLayoutEffect } from 'react';
 import styles from '../App.module.css';
-import { Virtuoso } from 'react-virtuoso';
 
 export default function ChatFeed({
   messages,
@@ -21,15 +20,85 @@ export default function ChatFeed({
   setDeleteModalMessageId,
   highlightText,
   setInfoModalMessage,
-  loadMoreMessages
+  loadMoreMessages,
+  hasMorePages,
+  isFetchingMore,
+  setShowScrollBtn,
+  messagesEndRef
 }) {
-  // Filter messages based on search query if user is searching
-  const filteredMessages = messages.filter(
-    (msg) => !searchQuery.trim() || (msg.text && msg.text.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const scrollContainerRef = useRef(null);
+  const topSentinelRef = useRef(null);
+  const firstMessageRef = useRef(null);
+  const lastMessageIdRef = useRef(null);
+  const hasInitializedRoom = useRef(false);
+  const isFetchingRef = useRef(isFetchingMore);
+  isFetchingRef.current = isFetchingMore;
+
+  // Handle initial room load scroll to bottom & live new message scroll
+  useEffect(() => {
+    if (searchQuery.trim() || messages.length === 0 || roomLoading) return;
+
+    const latestMessage = messages[messages.length - 1];
+    const latestId = latestMessage?._id || messages.length;
+
+    // If it's a fresh room load or a brand new message arrived at the bottom
+    if (!hasInitializedRoom.current || lastMessageIdRef.current !== latestId) {
+      messagesEndRef.current?.scrollIntoView({ behavior: !hasInitializedRoom.current ? 'auto' : 'smooth' });
+      lastMessageIdRef.current = latestId;
+      hasInitializedRoom.current = true;
+    }
+  }, [messages, searchQuery, roomLoading, messagesEndRef]);
+
+  // Reset initialization flag when room changes
+  useEffect(() => {
+    hasInitializedRoom.current = false;
+    lastMessageIdRef.current = null;
+  }, [room]);
+
+  const handleScroll = (e) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.target;
+    setShowScrollBtn(scrollHeight - scrollTop - clientHeight > 300);
+  };
+
+  // Intersection Observer for pre-fetching older messages
+  useEffect(() => {
+    const sentinel = topSentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const firstEntry = entries[0];
+        if (firstEntry.isIntersecting && hasMorePages && !isFetchingRef.current && !searchQuery.trim()) {
+          firstMessageRef.current = scrollContainerRef.current?.querySelector('[data-message-id]');
+          loadMoreMessages();
+        }
+      },
+      {
+        root: scrollContainerRef.current,
+        rootMargin: '150px 0px 0px 0px',
+        threshold: 0.1,
+      }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMorePages, loadMoreMessages, searchQuery]);
+
+  // Restore scroll position relative to the anchored message element when prepending history
+  useLayoutEffect(() => {
+    if (firstMessageRef.current) {
+      firstMessageRef.current.scrollIntoView({ block: 'start' });
+      firstMessageRef.current = null;
+    }
+  }, [messages]);
 
   return (
-    <div className={styles.messageFeed}>
+    <div 
+      ref={scrollContainerRef}
+      onScroll={handleScroll}
+      className={styles.messageFeed}
+      style={{ overflowY: 'auto', height: '100%', display: 'flex', flexDirection: 'column' }}
+    >
       {roomLoading ? (
         <div className={styles.roomLoaderContainer}>
           <div className={styles.spinner} />
@@ -48,21 +117,27 @@ export default function ChatFeed({
           </button>
         </div>
       ) : (
-        <Virtuoso
-          style={{ height: '100%', width: '100%' }}
-          data={filteredMessages}
-startReached={() => {
-    console.log('[VIRTUOSO DEBUG] startReached event fired! User reached the top of the feed.');
-    loadMoreMessages();
-  }}
-          initialTopMostItemIndex={filteredMessages.length - 1}
-          itemContent={(index, msg) => {
+        <>
+          {!searchQuery.trim() && <div ref={topSentinelRef} style={{ height: '1px', width: '100%' }} />}
+
+          {isFetchingMore && (
+            <div style={{ textAlign: 'center', padding: '10px', color: '#888', fontSize: '12px' }}>
+              Loading older messages...
+            </div>
+          )}
+
+          {messages.map((msg, index) => {
             const isMe = msg.senderUid === user.uid;
             const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
             const isMenuOpen = openMenuId === msg._id;
           
             return (
-              <div key={msg._id || index} className={styles.messageRow} style={{ justifyContent: isMe ? 'flex-end' : 'flex-start' }}>
+              <div 
+                key={msg._id || index} 
+                data-message-id={msg._id || index}
+                className={styles.messageRow} 
+                style={{ justifyContent: isMe ? 'flex-end' : 'flex-start' }}
+              >
                 <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
                   {!isMe && <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} referrerPolicy="no-referrer" />}
                   <div>
@@ -154,8 +229,9 @@ startReached={() => {
                 </div>
               </div>
             );
-          }}
-        />
+          })}
+          <div ref={messagesEndRef} />
+        </>
       )}
     </div>
   );

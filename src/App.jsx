@@ -41,6 +41,8 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [hasMorePages, setHasMorePages] = useState(true);
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   const roomRef = useRef(room);
   const socketRef = useRef(null);
@@ -50,70 +52,64 @@ export default function App() {
   const messagesEndRef = useRef(null);
   const feedRef = useRef(null); 
 
-const fetchMessagesForRoom = async (targetRoom) => {
-  console.log(`[CLIENT DEBUG] fetchMessagesForRoom triggered for room: ${targetRoom}`);
-  try {
-    const url = `${BACKEND_URL}/api/messages?room=${targetRoom}&limit=30`;
-    console.log(`[CLIENT DEBUG] Fetching URL: ${url}`);
-    
-    const res = await fetch(url);
-    console.log(`[CLIENT DEBUG] Response status: ${res.status} ${res.statusText}`);
-    
-    const data = await res.json();
-    console.log(`[CLIENT DEBUG] Received ${data.length} messages for room: ${targetRoom}`, data);
-    
-    setMessages(data);
-    setHasMorePages(data.length === 30);
-    console.log(`[CLIENT DEBUG] State updated. hasMorePages set to: ${data.length === 30}`);
-  } catch (err) {
-    console.error('[CLIENT ERROR] Failed to load messages in fetchMessagesForRoom:', err);
-  }
-};
 
-const loadMoreMessages = async () => {
-  console.log('[CLIENT DEBUG] loadMoreMessages triggered by scroll/Virtuoso');
-  console.log('[CLIENT DEBUG] Current flags -> isFetchingMore:', isFetchingMore, '| hasMorePages:', hasMorePages, '| messages.length:', messages.length);
-
-  if (isFetchingMore || !hasMorePages || messages.length === 0) {
-    console.log('[CLIENT DEBUG] loadMoreMessages aborted early due to guard conditions.');
+// Debounced server-side search effect
+useEffect(() => {
+  if (!searchQuery.trim()) {
+    setSearchResults([]);
+    setIsSearching(false);
     return;
   }
-  
-  setIsFetchingMore(true);
-  try {
-    const oldestMessageTime = messages[0].createdAt;
-    const url = `${BACKEND_URL}/api/messages?room=${room}&limit=30&before=${oldestMessageTime}`;
-    console.log(`[CLIENT DEBUG] Fetching older messages URL: ${url}`);
-    
-    const res = await fetch(url);
-    console.log(`[CLIENT DEBUG] Older messages response status: ${res.status}`);
-    
-    const olderData = await res.json();
-    console.log(`[CLIENT DEBUG] Received ${olderData.length} older messages`, olderData);
 
-    if (olderData.length === 0) {
-      console.log('[CLIENT DEBUG] No more older messages available. Setting hasMorePages to false.');
-      setHasMorePages(false);
-    } else {
-      setMessages((prev) => {
-        console.log(`[CLIENT DEBUG] Prepending ${olderData.length} older messages to existing ${prev.length} messages.`);
-        return [...olderData, ...prev];
-      });
+  setIsSearching(true);
+  const timer = setTimeout(async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/messages/search?room=${room}&query=${encodeURIComponent(searchQuery)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSearchResults(data);
+      }
+    } catch (err) {
+      console.error('Failed to search messages:', err);
+    } finally {
+      setIsSearching(false);
     }
-  } catch (err) {
-    console.error('[CLIENT ERROR] Failed to load older messages:', err);
-  } finally {
-    setIsFetchingMore(false);
-    console.log('[CLIENT DEBUG] loadMoreMessages finished. isFetchingMore reset to false.');
-  }
-};
-// Inside your socket real-time listener for incoming messages:
+  }, 400); // 400ms debounce
 
-  // 1. Create a filtered list based on the search query
-const filteredMessages = searchQuery.trim()
-  ? messages.filter((msg) => msg.text && msg.text.toLowerCase().includes(searchQuery.toLowerCase()))
-  : messages;
-// Automatically mark incoming messages as read if they belong to the current room
+  return () => clearTimeout(timer);
+}, [searchQuery, room]);
+
+// Use searchResults when searching, otherwise use regular messages
+const displayedMessages = searchQuery.trim() ? searchResults : messages;
+
+  const loadMoreMessages = async () => {
+    if (isFetchingMore || !hasMorePages || messages.length === 0) return;
+    
+    setIsFetchingMore(true);
+    try {
+      const oldestMessageTime = messages[0].createdAt;
+      const res = await fetch(`${BACKEND_URL}/api/messages?room=${room}&limit=30&before=${oldestMessageTime}`);
+      const olderData = await res.json();
+
+      if (olderData.length === 0) {
+        setHasMorePages(false);
+      } else {
+        setMessages((prev) => [...olderData, ...prev]);
+        if (olderData.length < 30) {
+          setHasMorePages(false);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load older messages', err);
+    } finally {
+      setIsFetchingMore(false);
+    }
+  };
+
+  const filteredMessages = searchQuery.trim()
+    ? messages.filter((msg) => msg.text && msg.text.toLowerCase().includes(searchQuery.toLowerCase()))
+    : messages;
+
   useEffect(() => {
     if (!user || messages.length === 0) return;
     
@@ -130,7 +126,6 @@ const filteredMessages = searchQuery.trim()
     }
   }, [messages, user, room]);
 
-  // Listen for read receipt updates from other users in real time
   useEffect(() => {
     const socket = socketRef.current;
     if (!socket) return;
@@ -148,21 +143,20 @@ const filteredMessages = searchQuery.trim()
     socket.on('messages_read_update', handleReadUpdate);
     return () => { socket.off('messages_read_update', handleReadUpdate); };
   }, []);
+
   useEffect(() => {
-  if (!user) return;
-  fetch(`${BACKEND_URL}/api/users`)
-    .then((res) => res.json())
-    .then((data) => setAllRegisteredUsers(data))
-    .catch((err) => console.error("Failed to fetch registered users:", err));
+    if (!user) return;
+    fetch(`${BACKEND_URL}/api/users`)
+      .then((res) => res.json())
+      .then((data) => setAllRegisteredUsers(data))
+      .catch((err) => console.error("Failed to fetch registered users:", err));
   }, [user]);
 
   const handleOpenPrivateChat = (targetUser) => {
-  // Sort UIDs consistently so both users generate the identical room identifier string
-  const privateRoomId = [user.uid, targetUser.uid].sort().join('_');
-
-  setRoom(privateRoomId);         // Triggers your existing useEffect to join room & fetch messages
-  setIsMobileMenuOpen(false);     // Close mobile drawer if open
-};
+    const privateRoomId = [user.uid, targetUser.uid].sort().join('_');
+    setRoom(privateRoomId);
+    setIsMobileMenuOpen(false);
+  };
 
   useEffect(() => { roomRef.current = room; }, [room]);
 
@@ -206,7 +200,6 @@ const filteredMessages = searchQuery.trim()
     return () => unsubscribe();
   }, []);
 
-  // Centralized Socket Connection & Event Registry with Debug Logs
   useEffect(() => {
     if (!user) return;
     let isMounted = true;
@@ -252,28 +245,18 @@ const filteredMessages = searchQuery.trim()
         setMessages((prev) => prev.filter((msg) => msg._id !== deletedId));
       });
       
-      // 🌟 DEBUG STEP: Log every incoming message packet
       socket.on('receive_message', (message) => {
-        const activeRoom = roomRef.current.toLowerCase(); // 🌟 Ensure activeRoom is lowercased
-        console.log("📥 [DEBUG] receive_message fired:", message);
-        
+        const activeRoom = roomRef.current.toLowerCase();
         const targetRoom = (message.room || activeRoom).toLowerCase();
-        console.log("📥 [DEBUG] targetRoom:", targetRoom, "| activeRoom:", activeRoom);
-        if (msg.room === room) {
-          setMessages((prev) => [...prev, msg]); // Appends new live message at bottom
-        }
+        
         if (targetRoom === activeRoom) {
-          console.log("✅ [DEBUG] Message belongs to ACTIVE room. Appending to feed.");
           setMessages((prev) => [...prev, message]);
           if (message.senderUid !== user.uid) playAlertSound();
         } else if (message.senderUid !== user.uid) {
-          console.log("🔔 [DEBUG] Message belongs to DIFFERENT room. Incrementing unread count for:", targetRoom);
-          setUnreadCounts((prev) => {
-            const updated = { ...prev, [targetRoom]: (prev[targetRoom] || 0) + 1 };
-            return updated;
-          });
-        } else {
-          console.log("ℹ️ [DEBUG] Message was sent by current user in another room. Ignored.");
+          setUnreadCounts((prev) => ({
+            ...prev,
+            [targetRoom]: (prev[targetRoom] || 0) + 1
+          }));
         }
       });
 
@@ -295,53 +278,35 @@ const filteredMessages = searchQuery.trim()
     };
   }, [user, playAlertSound]);
 
-  // Handle Room Switching and Resetting Unread Counts with Debug Logs
-useEffect(() => {
-  if (!user) return;
-  console.log("🔄 [DEBUG] Switching room to:", room);
-  setRoomLoading(true);
-  setTypingUser(null);
+  useEffect(() => {
+    if (!user) return;
+    setRoomLoading(true);
+    setTypingUser(null);
+    setHasMorePages(true);
 
-  setUnreadCounts((prev) => {
-    const updated = { ...prev, [room]: 0 };
-    return updated;
-  });
+    setUnreadCounts((prev) => ({ ...prev, [room]: 0 }));
 
-  const controller = new AbortController();
-  // When messages are loaded or viewed
-  // Fetch only the latest 30 messages for fast initial load
-  fetch(`${BACKEND_URL}/api/messages?room=${room}`, { signal: controller.signal })
-    .then((res) => res.json())
-    .then((data) => {
-      setMessages(data);
-      setRoomLoading(false);
-    })
-    .catch((err) => {
-      if (err.name !== 'AbortError') {
-        console.error("Error loading chat history:", err);
+    const controller = new AbortController();
+    fetch(`${BACKEND_URL}/api/messages?room=${room}&limit=30`, { signal: controller.signal })
+      .then((res) => res.json())
+      .then((data) => {
+        setMessages(data);
         setRoomLoading(false);
-      }
-    });
+        setHasMorePages(data.length === 30);
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          console.error("Error loading chat history:", err);
+          setRoomLoading(false);
+        }
+      });
 
-  if (socketRef.current) {
-    socketRef.current.emit('join_room', room);
-  }
-
-  return () => controller.abort();
-}, [room, user]);
-
-  const autoScrollRef = useEffect(() => {
-    if (!searchQuery.trim()) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (socketRef.current) {
+      socketRef.current.emit('join_room', room);
     }
-  }, [messages, typingUser, searchQuery]);
 
-const handleFeedScroll = (e) => {
-  const { scrollTop, scrollHeight, clientHeight } = e.target;
-  setShowScrollBtn(scrollHeight - scrollTop - clientHeight > 300);
-
-  // If user scrolls to the top of the container and there are messages to look back on
-};
+    return () => controller.abort();
+  }, [room, user]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -481,7 +446,7 @@ const handleFeedScroll = (e) => {
               onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
             />
 
-            <div className={styles.chatWindow} ref={feedRef} onScroll={handleFeedScroll}>
+            <div className={styles.chatWindow} ref={feedRef}>
               <ChatFeed 
                 messages={filteredMessages}
                 user={user}
@@ -503,6 +468,9 @@ const handleFeedScroll = (e) => {
                 messagesEndRef={messagesEndRef}
                 setInfoModalMessage={setInfoModalMessage}
                 loadMoreMessages={loadMoreMessages}
+                hasMorePages={hasMorePages}
+                isFetchingMore={isFetchingMore}
+                setShowScrollBtn={setShowScrollBtn}
               />
               <TypingIndicator typingUser={typingUser} />
 
@@ -577,34 +545,34 @@ const handleFeedScroll = (e) => {
         </div>
       )}
       {isSettingsOpen && (
-  <div className={styles.modalOverlay} onClick={() => setIsSettingsOpen(false)}>
-    <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
-      <h3>User Settings</h3>
-      <div style={{ margin: '20px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-        <img src={user?.photoURL} alt="" style={{ width: '60px', height: '60px', borderRadius: '50%' }} />
-        <p style={{ fontWeight: 600, color: '#fff' }}>{user?.displayName}</p>
-        <p style={{ fontSize: '12px', color: '#94a3b8' }}>{user?.email}</p>
-      </div>
-      <div style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
-        <button 
-          className={styles.modalDeleteBtn} 
-          onClick={() => {
-            setIsSettingsOpen(false);
-            signOut(auth);
-          }}
-        >
-          Log Out
-        </button>
-        <button 
-          className={styles.modalCancelBtn} 
-          onClick={() => setIsSettingsOpen(false)}
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+        <div className={styles.modalOverlay} onClick={() => setIsSettingsOpen(false)}>
+          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+            <h3>User Settings</h3>
+            <div style={{ margin: '20px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+              <img src={user?.photoURL} alt="" style={{ width: '60px', height: '60px', borderRadius: '50%' }} />
+              <p style={{ fontWeight: 600, color: '#fff' }}>{user?.displayName}</p>
+              <p style={{ fontSize: '12px', color: '#94a3b8' }}>{user?.email}</p>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
+              <button 
+                className={styles.modalDeleteBtn} 
+                onClick={() => {
+                  setIsSettingsOpen(false);
+                  signOut(auth);
+                }}
+              >
+                Log Out
+              </button>
+              <button 
+                className={styles.modalCancelBtn} 
+                onClick={() => setIsSettingsOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
