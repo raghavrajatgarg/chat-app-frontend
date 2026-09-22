@@ -518,6 +518,7 @@ const displayedMessages = searchQuery.trim() ? searchResults : messages;
                 hasMorePages={hasMorePages}
                 isFetchingMore={isFetchingMore}
                 setShowScrollBtn={setShowScrollBtn}
+                setActiveThreadMessage={setActiveThreadMessage}
               />
               <TypingIndicator typingUser={typingUser} />
               {activeThreadMessage && (
