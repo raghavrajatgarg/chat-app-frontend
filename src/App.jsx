@@ -50,25 +50,61 @@ export default function App() {
   const messagesEndRef = useRef(null);
   const feedRef = useRef(null); 
 
-// WhatsApp style "Load Older Messages" triggered when scrolling to top
+const fetchMessagesForRoom = async (targetRoom) => {
+  console.log(`[CLIENT DEBUG] fetchMessagesForRoom triggered for room: ${targetRoom}`);
+  try {
+    const url = `${BACKEND_URL}/api/messages?room=${targetRoom}&limit=30`;
+    console.log(`[CLIENT DEBUG] Fetching URL: ${url}`);
+    
+    const res = await fetch(url);
+    console.log(`[CLIENT DEBUG] Response status: ${res.status} ${res.statusText}`);
+    
+    const data = await res.json();
+    console.log(`[CLIENT DEBUG] Received ${data.length} messages for room: ${targetRoom}`, data);
+    
+    setMessages(data);
+    setHasMorePages(data.length === 30);
+    console.log(`[CLIENT DEBUG] State updated. hasMorePages set to: ${data.length === 30}`);
+  } catch (err) {
+    console.error('[CLIENT ERROR] Failed to load messages in fetchMessagesForRoom:', err);
+  }
+};
+
 const loadMoreMessages = async () => {
-  if (isFetchingMore || !hasMorePages || messages.length === 0) return;
+  console.log('[CLIENT DEBUG] loadMoreMessages triggered by scroll/Virtuoso');
+  console.log('[CLIENT DEBUG] Current flags -> isFetchingMore:', isFetchingMore, '| hasMorePages:', hasMorePages, '| messages.length:', messages.length);
+
+  if (isFetchingMore || !hasMorePages || messages.length === 0) {
+    console.log('[CLIENT DEBUG] loadMoreMessages aborted early due to guard conditions.');
+    return;
+  }
   
   setIsFetchingMore(true);
   try {
     const oldestMessageTime = messages[0].createdAt;
-    const res = await fetch(`${BACKEND_URL}/api/messages?room=${room}&limit=30&before=${oldestMessageTime}`);
+    const url = `${BACKEND_URL}/api/messages?room=${room}&limit=30&before=${oldestMessageTime}`;
+    console.log(`[CLIENT DEBUG] Fetching older messages URL: ${url}`);
+    
+    const res = await fetch(url);
+    console.log(`[CLIENT DEBUG] Older messages response status: ${res.status}`);
+    
     const olderData = await res.json();
+    console.log(`[CLIENT DEBUG] Received ${olderData.length} older messages`, olderData);
 
     if (olderData.length === 0) {
+      console.log('[CLIENT DEBUG] No more older messages available. Setting hasMorePages to false.');
       setHasMorePages(false);
     } else {
-      setMessages((prev) => [...olderData, ...prev]);
+      setMessages((prev) => {
+        console.log(`[CLIENT DEBUG] Prepending ${olderData.length} older messages to existing ${prev.length} messages.`);
+        return [...olderData, ...prev];
+      });
     }
   } catch (err) {
-    console.error('Failed to load older messages', err);
+    console.error('[CLIENT ERROR] Failed to load older messages:', err);
   } finally {
     setIsFetchingMore(false);
+    console.log('[CLIENT DEBUG] loadMoreMessages finished. isFetchingMore reset to false.');
   }
 };
 // Inside your socket real-time listener for incoming messages:

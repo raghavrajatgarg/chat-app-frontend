@@ -51,8 +51,10 @@ export default function ChatFeed({
         <Virtuoso
           style={{ height: '100%', width: '100%' }}
           data={filteredMessages}
-          // Triggers when user scrolls to the very top to fetch older history smoothly
-          startReached={loadMoreMessages}
+startReached={() => {
+    console.log('[VIRTUOSO DEBUG] startReached event fired! User reached the top of the feed.');
+    loadMoreMessages();
+  }}
           initialTopMostItemIndex={filteredMessages.length - 1}
           itemContent={(index, msg) => {
             const isMe = msg.senderUid === user.uid;
