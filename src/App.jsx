@@ -37,9 +37,10 @@ export default function App() {
   const [editingText, setEditingText] = useState(''); 
   const [searchQuery, setSearchQuery] = useState('');
   const [allRegisteredUsers, setAllRegisteredUsers] = useState([]);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [infoModalMessage, setInfoModalMessage] = useState(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [hasMorePages, setHasMorePages] = useState(true);
 
   const roomRef = useRef(room);
   const socketRef = useRef(null);
@@ -48,6 +49,29 @@ export default function App() {
   const typingTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
   const feedRef = useRef(null); 
+
+// WhatsApp style "Load Older Messages" triggered when scrolling to top
+const loadMoreMessages = async () => {
+  if (isFetchingMore || !hasMorePages || messages.length === 0) return;
+  
+  setIsFetchingMore(true);
+  try {
+    const oldestMessageTime = messages[0].createdAt;
+    const res = await fetch(`${BACKEND_URL}/api/messages?room=${room}&limit=30&before=${oldestMessageTime}`);
+    const olderData = await res.json();
+
+    if (olderData.length === 0) {
+      setHasMorePages(false);
+    } else {
+      setMessages((prev) => [...olderData, ...prev]);
+    }
+  } catch (err) {
+    console.error('Failed to load older messages', err);
+  } finally {
+    setIsFetchingMore(false);
+  }
+};
+// Inside your socket real-time listener for incoming messages:
 
   // 1. Create a filtered list based on the search query
 const filteredMessages = searchQuery.trim()
@@ -199,7 +223,9 @@ const filteredMessages = searchQuery.trim()
         
         const targetRoom = (message.room || activeRoom).toLowerCase();
         console.log("📥 [DEBUG] targetRoom:", targetRoom, "| activeRoom:", activeRoom);
-
+        if (msg.room === room) {
+          setMessages((prev) => [...prev, msg]); // Appends new live message at bottom
+        }
         if (targetRoom === activeRoom) {
           console.log("✅ [DEBUG] Message belongs to ACTIVE room. Appending to feed.");
           setMessages((prev) => [...prev, message]);
@@ -248,7 +274,7 @@ useEffect(() => {
   const controller = new AbortController();
   // When messages are loaded or viewed
   // Fetch only the latest 30 messages for fast initial load
-  fetch(`${BACKEND_URL}/api/messages?room=${room}&limit=30`, { signal: controller.signal })
+  fetch(`${BACKEND_URL}/api/messages?room=${room}`, { signal: controller.signal })
     .then((res) => res.json())
     .then((data) => {
       setMessages(data);
@@ -279,30 +305,6 @@ const handleFeedScroll = (e) => {
   setShowScrollBtn(scrollHeight - scrollTop - clientHeight > 300);
 
   // If user scrolls to the top of the container and there are messages to look back on
-  if (scrollTop === 0 && messages.length > 0 && !isFetchingMore && !roomLoading) {
-    setIsFetchingMore(true);
-    const oldestMessageTimestamp = messages[0].createdAt;
-    const container = e.target;
-    const previousScrollHeight = container.scrollHeight;
-
-    fetch(`${BACKEND_URL}/api/messages?room=${room}&limit=30&before=${oldestMessageTimestamp}`)
-      .then((res) => res.json())
-      .then((olderMessages) => {
-        if (olderMessages.length > 0) {
-          setMessages((prev) => [...olderMessages, ...prev]);
-
-          // Maintain scroll position so the view doesn't jump to the top
-          requestAnimationFrame(() => {
-            container.scrollTop = container.scrollHeight - previousScrollHeight;
-          });
-        }
-        setIsFetchingMore(false);
-      })
-      .catch((err) => {
-        console.error("Failed to load older messages:", err);
-        setIsFetchingMore(false);
-      });
-  }
 };
 
   const scrollToBottom = () => {
@@ -430,7 +432,6 @@ const handleFeedScroll = (e) => {
               className={`${styles.backdrop} ${isMobileMenuOpen ? styles.backdropVisible : ''}`} 
               onClick={() => setIsMobileMenuOpen(false)} 
             />
-
             <Sidebar 
               roomsList={ROOMS_LIST}
               room={room}
@@ -441,6 +442,7 @@ const handleFeedScroll = (e) => {
               allUsers={allRegisteredUsers}
               currentUser={user}
               isMobileMenuOpen={isMobileMenuOpen}
+              onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
             />
 
             <div className={styles.chatWindow} ref={feedRef} onScroll={handleFeedScroll}>
@@ -464,6 +466,7 @@ const handleFeedScroll = (e) => {
                 highlightText={highlightText}
                 messagesEndRef={messagesEndRef}
                 setInfoModalMessage={setInfoModalMessage}
+                loadMoreMessages={loadMoreMessages}
               />
               <TypingIndicator typingUser={typingUser} />
 

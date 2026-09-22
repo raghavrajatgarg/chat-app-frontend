@@ -39,18 +39,22 @@ export default function Header({ user, searchQuery, setSearchQuery, searchInputR
             placeholder="Search messages in channel..."
             className={styles.headerSearchInput}
           />
-          {searchQuery && (
+{searchQuery && (
   <button 
-    onClick={() => {
+    onClick={(e) => {
+      e.preventDefault(); // 🌟 Stops the browser from recalculating focus boundaries mid-click
       setSearchQuery('');
-      // Force input blur to drop the mobile keyboard smoothly
+      
+      // Explicitly pull focus out of the input field
       if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
       }
-      // Force the viewport container back to normal baseline layout boundaries
+      
+      // Safely bounce the viewport baseline back to absolute zero
       setTimeout(() => {
-        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-      }, 40);
+        window.scrollTo(0, 0);
+        document.body.scrollTop = 0;
+      }, 50);
     }} 
     className={styles.clearSearchBtn}
   >
@@ -117,16 +121,22 @@ export default function Header({ user, searchQuery, setSearchQuery, searchInputR
                 placeholder="Search messages in channel..."
                 className={styles.headerSearchInput}
               />
-              {searchQuery && (
+{searchQuery && (
   <button 
-    onClick={() => {
+    onClick={(e) => {
+      e.preventDefault(); // 🌟 Stops the browser from recalculating focus boundaries mid-click
       setSearchQuery('');
+      
+      // Explicitly pull focus out of the input field
       if (document.activeElement instanceof HTMLElement) {
         document.activeElement.blur();
       }
+      
+      // Safely bounce the viewport baseline back to absolute zero
       setTimeout(() => {
-        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-      }, 40);
+        window.scrollTo(0, 0);
+        document.body.scrollTop = 0;
+      }, 50);
     }} 
     className={styles.clearSearchBtn}
   >
