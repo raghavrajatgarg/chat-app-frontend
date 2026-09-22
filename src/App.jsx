@@ -154,9 +154,12 @@ const displayedMessages = searchQuery.trim() ? searchResults : messages;
     }
   };
 
-  const filteredMessages = searchQuery.trim()
-    ? messages.filter((msg) => msg.text && msg.text.toLowerCase().includes(searchQuery.toLowerCase()))
-    : messages;
+// Filter out thread replies globally so they NEVER show up in the main feed
+const mainChannelMessages = messages.filter((msg) => !msg.parentId);
+
+const filteredMessages = searchQuery.trim()
+  ? mainChannelMessages.filter((msg) => msg.text && msg.text.toLowerCase().includes(searchQuery.toLowerCase()))
+  : mainChannelMessages;
 
   useEffect(() => {
     if (!user || messages.length === 0) return;
@@ -294,6 +297,7 @@ const displayedMessages = searchQuery.trim() ? searchResults : messages;
       });
       
       socket.on('receive_message', (message) => {
+        if (message.parentId) return;
         const activeRoom = roomRef.current.toLowerCase();
         const targetRoom = (message.room || activeRoom).toLowerCase();
         

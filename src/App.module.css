@@ -1422,7 +1422,7 @@ html, body {
   position: absolute;
   right: 0;
   top: 0;
-  z-index: 100;
+  z-index: 10000;
   box-shadow: -10px 0 30px rgba(0,0,0,0.5);
   animation: slideInRight 0.25s ease-out;
 }
