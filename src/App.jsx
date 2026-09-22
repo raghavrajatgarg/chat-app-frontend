@@ -43,6 +43,9 @@ export default function App() {
   const [hasMorePages, setHasMorePages] = useState(true);
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [activeThreadMessage, setActiveThreadMessage] = useState(null);
+  const [threadMessages, setThreadMessages] = useState([]);
+  const [threadInput, setThreadInput] = useState('');
 
   const roomRef = useRef(room);
   const socketRef = useRef(null);
@@ -52,7 +55,52 @@ export default function App() {
   const messagesEndRef = useRef(null);
   const feedRef = useRef(null); 
 
+  const handleSendThreadReply = (e) => {
+  e.preventDefault();
+  const socket = socketRef.current;
+  if (!threadInput.trim() || !socket || !activeThreadMessage) return;
 
+  const replyData = {
+    text: threadInput.trim(),
+    sender: user.displayName || user.email,
+    senderUid: user.uid,
+    avatar: user.photoURL,
+    room: room,
+    parentId: activeThreadMessage._id,
+    createdAt: new Date(),
+  };
+
+  socket.emit('send_message', replyData, (response) => {
+    if (response?.success) {
+      setThreadInput('');
+    }
+  });
+};
+useEffect(() => {
+  if (!activeThreadMessage) {
+    setThreadMessages([]);
+    return;
+  }
+  fetch(`${BACKEND_URL}/api/messages/thread?parentId=${activeThreadMessage._id}`)
+    .then((res) => res.json())
+    .then((data) => setThreadMessages(data))
+    .catch((err) => console.error("Failed to load thread messages:", err));
+}, [activeThreadMessage]);
+
+// Listen for incoming live thread replies via socket
+useEffect(() => {
+  const socket = socketRef.current;
+  if (!socket) return;
+
+  const handleNewMessage = (message) => {
+    if (activeThreadMessage && message.parentId === activeThreadMessage._id) {
+      setThreadMessages((prev) => [...prev, message]);
+    }
+  };
+
+  socket.on('receive_message', handleNewMessage);
+  return () => socket.off('receive_message', handleNewMessage);
+}, [activeThreadMessage]);
 // Debounced server-side search effect
 useEffect(() => {
   if (!searchQuery.trim()) {
@@ -473,12 +521,44 @@ const displayedMessages = searchQuery.trim() ? searchResults : messages;
                 setShowScrollBtn={setShowScrollBtn}
               />
               <TypingIndicator typingUser={typingUser} />
+              {activeThreadMessage && (
+  <div className={styles.threadDrawer}>
+    <div className={styles.threadHeader}>
+      <h3>Thread</h3>
+      <button onClick={() => setActiveThreadMessage(null)} className={styles.closeThreadBtn}>×</button>
+    </div>
+    <div className={styles.originalMessagePreview}>
+      <strong>{activeThreadMessage.sender}:</strong> {activeThreadMessage.text}
+    </div>
+    <div className={styles.threadMessagesFeed}>
+      {threadMessages.map((msg) => (
+        <div key={msg._id} className={styles.threadMessageItem}>
+          <img src={msg.avatar} alt="" className={styles.messageAvatar} />
+          <div>
+            <span className={styles.messageSenderName}>{msg.sender}</span>
+            <p className={styles.threadReplyText}>{msg.text}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+    <form onSubmit={handleSendThreadReply} className={styles.threadForm}>
+      <input 
+        type="text" 
+        value={threadInput} 
+        onChange={(e) => setThreadInput(e.target.value)} 
+        placeholder="Reply in thread..." 
+        className={styles.threadInput}
+      />
+      <button type="submit" className={styles.threadSendBtn}>Send</button>
+    </form>
+  </div>
+)}
 
               {showScrollBtn && (
                 <button onClick={scrollToBottom} className={styles.scrollToBottomBtn} aria-label="Scroll to bottom">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path fillRule="evenodd" d="M1.646 6.646a.5.5 0 0 1 .708 0L8 12.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0_1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
-                    <path fillRule="evenodd" d="M1.646 2.646a.5.5 0 0 1 .708 0L8 8.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-double-down" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M1.646 6.646a.5.5 0 0 1 .708 0L8 12.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+                    <path fill-rule="evenodd" d="M1.646 2.646a.5.5 0 0 1 .708 0L8 8.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
                   </svg>
                 </button>
               )}
