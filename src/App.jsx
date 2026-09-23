@@ -86,61 +86,7 @@ export default function App() {
 // 1. Add an ICE candidate queue ref near your other refs
   const iceCandidateQueueRef = useRef([]);
 
-  // 2. Update your createPeerConnection / ICE candidate listener block
-  useEffect(() => {
-    const socket = socketRef.current;
-    if (!socket) return;
 
-    socket.on("incoming_call", ({ signal, from, name }) => {
-      setCallerInfo({ name, from });
-      setIncomingSignal(signal);
-      setCallStatus("incoming");
-    });
-
-    socket.on("call_accepted", async (signal) => {
-      setCallStatus("connected");
-      const pc = peerConnectionRef.current;
-      if (pc) {
-        await pc.setRemoteDescription(new RTCSessionDescription(signal));
-        // Flush any queued ICE candidates once remote description is set
-        while (iceCandidateQueueRef.current.length > 0) {
-          const candidate = iceCandidateQueueRef.current.shift();
-          try {
-            await pc.addIceCandidate(new RTCIceCandidate(candidate));
-          } catch (err) {
-            console.error("Error adding queued ice candidate:", err);
-          }
-        }
-      }
-    });
-
-    socket.on("ice_candidate", async (candidate) => {
-      const pc = peerConnectionRef.current;
-      if (pc) {
-        if (pc.remoteDescription && pc.remoteDescription.type) {
-          try {
-            await pc.addIceCandidate(new RTCIceCandidate(candidate));
-          } catch (err) {
-            console.error("Error adding received ice candidate:", err);
-          }
-        } else {
-          // Queue candidate if remote description isn't ready yet
-          iceCandidateQueueRef.current.push(candidate);
-        }
-      }
-    });
-
-    socket.on("call_ended", () => {
-      endCallCleanup();
-    });
-
-    return () => {
-      socket.off("incoming_call");
-      socket.off("call_accepted");
-      socket.off("ice_candidate");
-      socket.off("call_ended");
-    };
-  }, []);
   // Setup media tracks (WebRTC)
   const setupMedia = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -625,13 +571,67 @@ const optimisticMessage = {
 
 const socket = io(BACKEND_URL, { autoConnect: true, auth: { token } });
         socketRef.current = socket;
+        async function initSocket() {
+      try {
+        const token = await user.getIdToken();
+        if (isCancelled) return;
 
-        // 👇 ADD THIS LINE TO FORCE MAPPING ON THE SERVER IMMEDIATELY
+        const socket = io(BACKEND_URL, { autoConnect: true, auth: { token } });
+        socketRef.current = socket;
+
+        // Force user mapping on the server immediately
         socket.emit("realRegisterUser", user.uid);
+
+        // ==========================================
+        // ADD WEBRTC LISTENERS HERE SO THEY BIND PROPERLY
+        // ==========================================
+        socket.on("incoming_call", ({ signal, from, name }) => {
+          console.log("🚨 SUCCESS! Incoming call received from:", name);
+          setCallerInfo({ name, from });
+          setIncomingSignal(signal);
+          setCallStatus("incoming");
+        });
+
+        socket.on("call_accepted", async (signal) => {
+          setCallStatus("connected");
+          const pc = peerConnectionRef.current;
+          if (pc) {
+            await pc.setRemoteDescription(new RTCSessionDescription(signal));
+            while (iceCandidateQueueRef.current.length > 0) {
+              const candidate = iceCandidateQueueRef.current.shift();
+              try {
+                await pc.addIceCandidate(new RTCIceCandidate(candidate));
+              } catch (err) {
+                console.error("Error adding queued ice candidate:", err);
+              }
+            }
+          }
+        });
+
+        socket.on("ice_candidate", async (candidate) => {
+          const pc = peerConnectionRef.current;
+          if (pc) {
+            if (pc.remoteDescription && pc.remoteDescription.type) {
+              try {
+                await pc.addIceCandidate(new RTCIceCandidate(candidate));
+              } catch (err) {
+                console.error("Error adding received ice candidate:", err);
+              }
+            } else {
+              iceCandidateQueueRef.current.push(candidate);
+            }
+          }
+        });
+
+        socket.on("call_ended", () => {
+          endCallCleanup();
+        });
+        // ==========================================
 
         let fcmDeviceToken = null;
         try {
           if ('serviceWorker' in navigator) {
+            socket.emit("realRegisterUser", user.uid);
             const messaging = getMessaging();
             const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
             await navigator.serviceWorker.ready;
