@@ -117,16 +117,20 @@ export default function App() {
     }
   };
 
-  // 3. Cancel Recording
-  const cancelRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-    setRecordedAudioUrl(null);
-    setAudioBlob(null);
-    clearInterval(timerRef.current);
-  };
+const cancelRecording = () => {
+  // 1. Stop the media recorder if it's running to release the microphone
+  if (mediaRecorderRef.current && isRecording) {
+    mediaRecorderRef.current.onstop = null; // Clear the onstop handler so it won't trigger save logic
+    mediaRecorderRef.current.stop();
+  }
+
+  // 2. Reset all recording states completely
+  setIsRecording(false);
+  setRecordedAudioUrl(null); // Crucial: Setting this to null prevents the preview screen from showing
+  setAudioChunks([]);        // Clear out the recorded data
+  clearInterval(timerRef.current); // Clear your timer if you have one
+  setRecordingTime(0);
+};
 
   // 4. Send Audio Message
   const handleSendAudio = async () => {

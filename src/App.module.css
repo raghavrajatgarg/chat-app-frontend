@@ -1835,3 +1835,139 @@ html, body {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.3); opacity: 0.6; }
 }
+/* Mobile Active Recording Drawer & Visual Feedback */
+.recordingBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(15, 23, 42, 0.98);
+  border-top: 1px solid var(--border-color);
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  animation: slideUp 0.2s ease-out;
+}
+
+.recordingIndicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.recordingPulseDot {
+  width: 10px;
+  height: 10px;
+  background-color: var(--accent-red);
+  border-radius: 50%;
+  animation: pulseAnimation 1.2s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+.recordingTimer {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.recordingText {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@keyframes pulseAnimation {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.5; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+/* Container for the attachment button and dropup */
+.attachMenuContainer {
+  position: relative;
+  display: inline-block;
+}
+
+/* Dropup popup card */
+.attachDropup {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 8px;
+  background-color: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 100;
+  min-width: 130px;
+}
+
+/* Individual options in dropup */
+.dropupItem {
+  display: flex;
+  background: transparent;
+  border: none;
+  color: #f3f4f6;
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dropupItem:hover {
+  background-color: #374151;
+}
+
+/* Hide standalone microphone button on mobile viewports (screens <= 768px) */
+@media (max-width: 768px) {
+  .desktopMicBtn {
+    display: none !important;
+  }
+} 
+
+/* target mobile devices */
+@media (max-width: 768px) {
+  /* Hides the slider itself */
+  .previewAudioPlayer::-webkit-media-controls-volume-slider {
+    display: none !important;
+  }
+  
+  /* Hides the surrounding volume/mute button panel */
+  .previewAudioPlayer::-webkit-media-controls-mute-button,
+  .previewAudioPlayer::-webkit-media-controls-volume-control-container {
+    display: none !important;
+  }
+}
+
+/* If the above gets compiled incorrectly, use the :global bypass: */
+@media (max-width: 768px) {
+  .previewAudioPlayer :global(::-webkit-media-controls-volume-slider),
+  .previewAudioPlayer :global(::-webkit-media-controls-mute-button),
+  .previewAudioPlayer :global(::-webkit-media-controls-volume-control-container) {
+    display: none !important;
+  }
+  
+}
+@media (max-width: 768px) {
+  .previewAudioPlayer {
+    /* Forcing the browser to drop the volume slider due to layout limits */
+    width: 140px !important; 
+  }
+}
