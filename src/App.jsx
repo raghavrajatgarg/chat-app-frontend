@@ -15,9 +15,13 @@ import ChatInputForm from './components/ChatInputForm';
 import ThreadView from './components/ThreadView';
 import InfoModal from './components/InfoModal.jsx';
 import EditMessageModal from './components/EditMessageModal';
+import CallModal from "./components/CallModal";
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://chat-app-backend-1yfa.onrender.com';
 const ROOMS_LIST = ['general', 'tech', 'random', 'gaming'];
+const peerConfig = {
+  iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+};
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -55,11 +59,12 @@ export default function App() {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  
-  // Audio Recording States
   const [isRecording, setIsRecording] = useState(false);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState(null);
   const [audioBlob, setAudioBlob] = useState(null);
+  const [callStatus, setCallStatus] = useState("idle"); // idle, calling, incoming, connected
+  const [callerInfo, setCallerInfo] = useState({ name: "", from: "" });
+  const [incomingSignal, setIncomingSignal] = useState(null);
   const [recordingTime, setRecordingTime] = useState(0);
 
   const roomRef = useRef(room);
@@ -69,12 +74,194 @@ export default function App() {
   const typingTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
   const feedRef = useRef(null); 
-
-  // Audio Recording Refs
+  const localStreamRef = useRef(null);
+  const peerConnectionRef = useRef(null);
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
 
+  useEffect(() => {
+    const socket = socketRef.current;
+
+    if (user && socket) {
+      socket.emit("realRegisterUser", user.uid);
+    }
+  }, [user]);
+
+  // Socket event listeners for signaling
+// 1. Add an ICE candidate queue ref near your other refs
+  const iceCandidateQueueRef = useRef([]);
+
+  // 2. Update your createPeerConnection / ICE candidate listener block
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket) return;
+
+    socket.on("incoming_call", ({ signal, from, name }) => {
+      setCallerInfo({ name, from });
+      setIncomingSignal(signal);
+      setCallStatus("incoming");
+    });
+
+    socket.on("call_accepted", async (signal) => {
+      setCallStatus("connected");
+      const pc = peerConnectionRef.current;
+      if (pc) {
+        await pc.setRemoteDescription(new RTCSessionDescription(signal));
+        // Flush any queued ICE candidates once remote description is set
+        while (iceCandidateQueueRef.current.length > 0) {
+          const candidate = iceCandidateQueueRef.current.shift();
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (err) {
+            console.error("Error adding queued ice candidate:", err);
+          }
+        }
+      }
+    });
+
+    socket.on("ice_candidate", async (candidate) => {
+      const pc = peerConnectionRef.current;
+      if (pc) {
+        if (pc.remoteDescription && pc.remoteDescription.type) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (err) {
+            console.error("Error adding received ice candidate:", err);
+          }
+        } else {
+          // Queue candidate if remote description isn't ready yet
+          iceCandidateQueueRef.current.push(candidate);
+        }
+      }
+    });
+
+    socket.on("call_ended", () => {
+      endCallCleanup();
+    });
+
+    return () => {
+      socket.off("incoming_call");
+      socket.off("call_accepted");
+      socket.off("ice_candidate");
+      socket.off("call_ended");
+    };
+  }, []);
+  // Setup media tracks (WebRTC)
+  const setupMedia = async () => {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    localStreamRef.current = stream;
+    if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+    return stream;
+  };
+
+  const createPeerConnection = (targetUid) => {
+    const pc = new RTCPeerConnection(peerConfig);
+    peerConnectionRef.current = pc;
+    const socket = socketRef.current;
+
+
+    // Add local tracks to peer connection
+    localStreamRef.current.getTracks().forEach((track) => {
+      pc.addTrack(track, localStreamRef.current);
+    });
+
+    // Handle incoming remote stream tracks
+    pc.ontrack = (event) => {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = event.streams[0];
+      }
+    };
+    // Send ICE candidates to peer via socket
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit("ice_candidate", { target: event.candidate, to: targetUid });
+      }
+    };
+
+    return pc;
+  };
+
+  // Triggered when User A clicks "Call" on Sidebar
+const startCall = async (userToCall) => {
+    // Prevent starting multiple calls simultaneously if already calling/connected
+    if (callStatus !== "idle") return;
+
+    try {
+      setCallStatus("calling");
+      setCallerInfo({ name: userToCall.name, from: userToCall.uid });
+      
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      } catch (err) {
+        console.warn("Video device not found, falling back to audio-only...", err);
+        stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+      }
+        
+      localStreamRef.current = stream;
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      const pc = createPeerConnection(userToCall.uid);
+      
+      // Ensure we don't duplicate tracks if sender already exists
+      const senders = pc.getSenders();
+      stream.getTracks().forEach((track) => {
+        const alreadyExists = senders.some(sender => sender.track === track);
+        if (!alreadyExists) {
+          pc.addTrack(track, stream);
+        }
+      });
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      socketRef.current.emit("start_call", {
+        signal: offer,
+        to: userToCall.uid,
+        name: user?.name || "User"
+      });
+    } catch (err) {
+      console.error("Media devices error:", err);
+      alert("Could not access your camera or microphone. Please check your device connections and browser permissions.");
+      setCallStatus("idle");
+    }
+  };
+  // Triggered when User B clicks "Accept"
+  const acceptCall = async () => {
+    const socket = socketRef.current;
+    setCallStatus("connected");
+    const stream = await setupMedia();
+    const pc = createPeerConnection(callerInfo.from);
+
+    await pc.setRemoteDescription(new RTCSessionDescription(incomingSignal));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    socket.emit("answer_call", { signal: answer, to: callerInfo.from });
+  };
+
+  // Terminate/Decline call cleanup
+  const endCallCleanup = () => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+    }
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    setCallStatus("idle");
+    setIncomingSignal(null);
+  };
+
+  const handleHangup = () => {
+    socket.emit("hangup_call", { to: callerInfo.from });
+    endCallCleanup();
+  };
   // 1. Start Recording
   const startRecording = async () => {
     try {
@@ -423,8 +610,8 @@ const optimisticMessage = {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
       setLoading(false);
     });
     return () => unsubscribe();
@@ -706,6 +893,7 @@ const handleEditMessage = (newText) => {
               currentUser={user}
               isMobileMenuOpen={isMobileMenuOpen}
               onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
+              startCall={startCall}
             />
             <div className={styles.chatWindow} ref={feedRef}>
               <ChatFeed 
@@ -908,6 +1096,14 @@ const handleEditMessage = (newText) => {
           </div>
         </div>
       )}
+      <CallModal
+        callStatus={callStatus}
+        callerName={callerInfo.name}
+        onAccept={acceptCall}
+        onReject={handleHangup}
+        localVideoRef={localVideoRef}
+        remoteVideoRef={remoteVideoRef}
+      />
     </div>
   );
 }

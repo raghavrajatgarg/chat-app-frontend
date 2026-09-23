@@ -10,7 +10,8 @@ export default function Sidebar({
   allUsers = [], 
   currentUser, 
   isMobileMenuOpen,
-  onCloseMobileMenu
+  onCloseMobileMenu,
+  startCall
 }) {
   
   const isUserOnline = (uid) => {
@@ -73,44 +74,63 @@ export default function Sidebar({
         </div>
       </div>
 
-      <div className={styles.sidebarSection}>
-        <h4 className={styles.sidebarTitle}>Direct Messages</h4>
-        <div className={styles.userList}>
-          {allUsers
-            .filter((u) => u.uid !== currentUser?.uid)
-            .map((u) => {
-              const online = isUserOnline(u.uid);
-              const privateRoomId = [currentUser?.uid, u.uid].sort().join('_');
-              const isActive = room === privateRoomId;
+     <div className={styles.sidebarSection}>
+  <h4 className={styles.sidebarTitle}>Direct Messages</h4>
+  <div className={styles.userList}>
+    {allUsers
+      .filter((u) => u.uid !== currentUser?.uid)
+      .map((u) => {
+        const online = isUserOnline(u.uid);
+        const privateRoomId = [currentUser?.uid, u.uid].sort().join('_');
+        const isActive = room === privateRoomId;
 
-              return (
-                <button
-                  key={u.uid}
-                  onClick={() => onSelectPrivateChat(u)}
-                  className={`${styles.roomBtn} ${isActive ? styles.roomBtnActive : ''}`}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', overflow: 'hidden' }}>
-                    <div style={{ position: 'relative', flexShrink: 0 }}>
-                      <img 
-                        src={u.avatar || 'https://placeholder.com'} 
-                        alt="" 
-                        className={styles.userAvatar} 
-                        style={{ width: '28px', height: '28px' }}
-                      />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', flex: 1, overflow: 'hidden' }}>
-                      <span className={styles.userName}>{u.name}</span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-subtle)' }}>
-                        {online ? 'Online' : formatLastSeen(u.lastSeen)}
-                      </span>
-                    </div>
-                    {online && <div className={styles.statusDot} />}
-                  </div>
-                </button>
-              );
-            })}
-        </div>
-      </div>
+        return (
+          <div
+            key={u.uid}
+            onClick={() => onSelectPrivateChat(u)}
+            className={`${styles.roomBtn} ${isActive ? styles.roomBtnActive : ''}`}
+            style={{ 
+              cursor: 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between' 
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden', flex: 1 }}>
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <img 
+                  src={u.avatar || 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTG2WvvTfYjXX8CEkilCI3cS_kYcqWAxegJwqTTIhmFqs3V4XHvSUORZWbj&s=10'} 
+                  alt="" 
+                  className={styles.userAvatar} 
+                  style={{ width: '28px', height: '28px' }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', flex: 1, overflow: 'hidden' }}>
+                <span className={styles.userName}>{u.name}</span>
+                <span className={`${styles.lastSeen} ${isActive ? styles.lastSeenActive : ''}`} style={{ fontSize: '11px' }}>
+                  {online ? 'Online' : formatLastSeen(u.lastSeen)}
+                </span>
+              </div>
+              {online && <div className={styles.statusDot} />}
+            </div>
+
+            {/* Call button separated cleanly as a standalone button */}
+            <button 
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation(); // Prevents opening private chat when clicking call
+                startCall(u);
+              }} 
+              className={styles.callIconButton}
+              title="Start Video Call"
+            >
+              📞
+            </button>
+          </div>
+        );
+      })}
+  </div>
+</div>
     </aside>
   );
 }
