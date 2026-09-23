@@ -82,14 +82,6 @@ export default function App() {
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
 
-  useEffect(() => {
-    const socket = socketRef.current;
-
-    if (user && socket) {
-      socket.emit("realRegisterUser", user.uid);
-    }
-  }, [user]);
-
   // Socket event listeners for signaling
 // 1. Add an ICE candidate queue ref near your other refs
   const iceCandidateQueueRef = useRef([]);
