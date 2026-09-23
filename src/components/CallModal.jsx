@@ -2,24 +2,30 @@ import React, { useEffect, useRef } from "react";
 import styles from "../App.module.css";
 
 export default function CallModal({
-  callStatus, // "calling", "incoming", "connected"
+  callStatus,
   callerName,
   onAccept,
   onReject,
-  localVideoRef,
-  remoteVideoRef,
+  localStream,
+  remoteStream,
 }) {
+  const localVideoRef = useRef(null);
+  const remoteVideoRef = useRef(null);
   const audioRef = useRef(null);
 
-  // Play/Stop ringing sound based on call status
+  // Attach local stream when connected and ref is available
   useEffect(() => {
-    if (callStatus === "incoming" || callStatus === "calling") {
-      audioRef.current?.play().catch(() => {});
-    } else {
-      audioRef.current?.pause();
-      if (audioRef.current) audioRef.current.currentTime = 0;
+    if (callStatus === "connected" && localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
     }
-  }, [callStatus]);
+  }, [callStatus, localStream]);
+
+  // Attach remote stream when available
+  useEffect(() => {
+    if (callStatus === "connected" && remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [callStatus, remoteStream]);
 
   if (callStatus === "idle") return null;
 

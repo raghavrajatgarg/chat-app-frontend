@@ -66,6 +66,7 @@ export default function App() {
   const [callerInfo, setCallerInfo] = useState({ name: "", from: "" });
   const [incomingSignal, setIncomingSignal] = useState(null);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [remoteStream, setRemoteStream] = useState(null);
 
   const roomRef = useRef(room);
   const socketRef = useRef(null);
@@ -107,11 +108,10 @@ export default function App() {
     });
 
     // Handle incoming remote stream tracks
-    pc.ontrack = (event) => {
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-      }
-    };
+pc.ontrack = (event) => {
+  console.log("📺 Remote stream received:", event.streams[0]);
+  setRemoteStream(event.streams[0]);
+};
     // Send ICE candidates to peer via socket
     pc.onicecandidate = (event) => {
       if (event.candidate) {
@@ -197,6 +197,7 @@ const startCall = async (userToCall) => {
   };
 
   const handleHangup = () => {
+    const socket = socketRef.current;
     socket.emit("hangup_call", { to: callerInfo.from });
     endCallCleanup();
   };
@@ -1083,14 +1084,14 @@ const handleEditMessage = (newText) => {
           </div>
         </div>
       )}
-      <CallModal
-        callStatus={callStatus}
-        callerName={callerInfo.name}
-        onAccept={acceptCall}
-        onReject={handleHangup}
-        localVideoRef={localVideoRef}
-        remoteVideoRef={remoteVideoRef}
-      />
+<CallModal
+  callStatus={callStatus}
+  callerName={callerInfo.name}
+  onAccept={acceptCall}
+  onReject={handleHangup}
+  localStream={localStreamRef.current}
+  remoteStream={remoteStream}
+/>
     </div>
   );
 }
