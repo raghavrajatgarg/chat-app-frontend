@@ -8,7 +8,8 @@ export default function ChatInputForm({
   roomLoading,
   isSendingImage,
   fileInputRef,
-  handleImageSelect
+  handleImageSelect,
+  isSending
 }) {
   return (
     <div className={styles.formWidthWrapper}>
@@ -27,11 +28,11 @@ export default function ChatInputForm({
           onChange={handleInputChange} 
           onPaste={handlePaste}
           placeholder={isSendingImage ? "Sending image asset..." : roomLoading ? "Loading room..." : "Type a message..."}
-          disabled={roomLoading || isSendingImage}
+          disabled={roomLoading || isSendingImage || isSending}
           className={styles.chatInput} 
         />
         
-        <button type="submit" disabled={roomLoading || isSendingImage} className={styles.sendBtn}>
+        <button type="submit" disabled={roomLoading || isSendingImage || isSending} className={styles.sendBtn}>
            {isSendingImage ? (
              <span className={styles.inlineSpinner} />
            ) : (

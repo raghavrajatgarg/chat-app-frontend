@@ -47,6 +47,7 @@ export default function App() {
   const [activeThreadMessage, setActiveThreadMessage] = useState(null);
   const [threadMessages, setThreadMessages] = useState([]);
   const [threadInput, setThreadInput] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
   const roomRef = useRef(room);
   const socketRef = useRef(null);
@@ -252,13 +253,21 @@ const filteredMessages = searchQuery.trim()
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (!user) return;
-    let isMounted = true;
+useEffect(() => {
+  if (!user) return;
+  let isCancelled = false;
 
-    user.getIdToken().then(async (token) => {
-      if (!isMounted) return;
-      
+  // Ensure any existing socket is cleaned up before creating a new one
+  if (socketRef.current) {
+    socketRef.current.disconnect();
+    socketRef.current = null;
+  }
+
+  async function initSocket() {
+    try {
+      const token = await user.getIdToken();
+      if (isCancelled) return;
+
       const socket = io(BACKEND_URL, { autoConnect: true, auth: { token } });
       socketRef.current = socket;
 
@@ -297,21 +306,34 @@ const filteredMessages = searchQuery.trim()
         setMessages((prev) => prev.filter((msg) => msg._id !== deletedId));
       });
       
-      socket.on('receive_message', (message) => {
-        if (message.parentId) return;
-        const activeRoom = roomRef.current.toLowerCase();
-        const targetRoom = (message.room || activeRoom).toLowerCase();
-        
-        if (targetRoom === activeRoom) {
-          setMessages((prev) => [...prev, message]);
-          if (message.senderUid !== user.uid) playAlertSound();
-        } else if (message.senderUid !== user.uid) {
-          setUnreadCounts((prev) => ({
-            ...prev,
-            [targetRoom]: (prev[targetRoom] || 0) + 1
-          }));
-        }
-      });
+socket.on('receive_message', (message) => {
+  if (message.parentId) return; // Skip thread replies
+
+  setMessages((prev) => {
+    // 1. Try matching by clientMessageId first
+    if (message.clientMessageId) {
+      const index = prev.findIndex(m => m.clientMessageId === message.clientMessageId);
+      if (index !== -1) {
+        const updated = [...prev];
+        updated[index] = message;
+        return updated;
+      }
+    }
+
+    // 2. Fallback: If it's from you, look for a pending message with matching text to replace
+    if (message.senderUid === user.uid) {
+      const pendingIndex = prev.findIndex(m => m.pending && m.text === message.text);
+      if (pendingIndex !== -1) {
+        const updated = [...prev];
+        updated[pendingIndex] = message;
+        return updated;
+      }
+    }
+
+    // Otherwise, append normally
+    return [...prev, message];
+  });
+}); 
 
       socket.on('display_typing', ({ userName, room: typingRoom }) => {
         if (typingRoom === roomRef.current) setTypingUser(userName);
@@ -320,16 +342,21 @@ const filteredMessages = searchQuery.trim()
       socket.on('hide_typing', ({ room: typingRoom }) => {
         if (typingRoom === roomRef.current) setTypingUser(null);
       });
-    });
+    } catch (err) {
+      console.error("Socket init error:", err);
+    }
+  }
 
-    return () => {
-      isMounted = false;
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
-    };
-  }, [user, playAlertSound]);
+  initSocket();
+
+  return () => {
+    isCancelled = true;
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+    }
+  };
+}, [user, playAlertSound]);
 
   useEffect(() => {
     if (!user) return;
@@ -385,33 +412,47 @@ const filteredMessages = searchQuery.trim()
     try { await signInWithPopup(auth, googleProvider); } 
     catch (error) { console.error("Login Failed:", error); }
   };
-
-  const handleSendMessage = async (e) => {
+const handleSendMessage = async (e) => {
     e.preventDefault();
     const socket = socketRef.current;
-    if ((!newMessage.trim() && !selectedImage) || !socket || isSendingImage) return;
+    if ((!newMessage.trim() && !selectedImage) || !socket || isSending) return;
     
-    if (selectedImage) setIsSendingImage(true);
-    socket.emit('typing_stop', { room });
+    const clientMessageId = 'client-' + Date.now() + '-' + Math.random();
+    const messageText = newMessage.trim();
+    const messageImage = selectedImage;
 
-    const messageData = {
-      text: newMessage.trim() ? newMessage : "\u200B", 
+    setNewMessage('');
+    setSelectedImage(null);
+
+    // 1. Create optimistic message with the clientMessageId
+    const optimisticMessage = {
+      _id: clientMessageId, // temporary ID
+      clientMessageId: clientMessageId,
+      text: messageText || "\u200B",
       sender: user.displayName || user.email,
       senderUid: user.uid,
-      image: selectedImage || null,
+      image: messageImage || null,
       avatar: user.photoURL,
       room: room,
       createdAt: new Date(),
+      pending: true
     };
 
-    socket.emit('send_message', messageData, (response) => {
-      if (response?.success) {
-        setNewMessage('');
-        setSelectedImage(null);
-      } else {
-        alert("Failed to send message: " + (response?.error || "Unknown"));
-      }
-      setIsSendingImage(false);
+    setMessages((prev) => [...prev, optimisticMessage]);
+
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 10);
+
+    // 2. Send payload including the clientMessageId to the server
+    socket.emit('send_message', {
+      clientMessageId,
+      text: messageText || "\u200B",
+      sender: user.displayName || user.email,
+      senderUid: user.uid,
+      image: messageImage || null,
+      avatar: user.photoURL,
+      room: room,
     });
   };
 
@@ -553,6 +594,7 @@ const filteredMessages = searchQuery.trim()
                 roomLoading={roomLoading}
                 isSendingImage={isSendingImage}
                 fileInputRef={fileInputRef}
+                isSending={isSending}
                 handleImageSelect={handleImageSelect}
               />
             </div>
