@@ -22,6 +22,25 @@ export default function ChatInputForm({
 }) {
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const menuRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  // Automatically reset textarea height when the message is cleared/sent
+  useEffect(() => {
+    if (!newMessage && textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+  }, [newMessage]);
+
+  const handleTextareaChange = (e) => {
+    handleInputChange(e);
+    
+    // Dynamic height adjustment
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto'; // Reset height temporarily to recalculate
+      textarea.style.height = `${textarea.scrollHeight}px`; // Set to content height
+    }
+  };
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -102,7 +121,7 @@ export default function ChatInputForm({
               type="button" 
               onClick={handleAttachClick} 
               className={styles.logoutBtn} 
-              style={{padding: '8px 12px', borderColor: '#374151', color: '#9ca3af', marginRight: '-4px'}} 
+              style={{padding: '10px 12px', borderColor: '#374151', color: '#9ca3af', marginRight: '-4px'}} 
               title="Attach"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
@@ -144,15 +163,25 @@ export default function ChatInputForm({
             </svg>
           </button>
 
-          <input 
-            type="text" 
-            value={newMessage} 
-            onChange={handleInputChange} 
-            onPaste={handlePaste}
-            placeholder={isSendingImage ? "Sending image asset..." : roomLoading ? "Loading room..." : "Type a message..."}
-            disabled={roomLoading || isSendingImage || isSending}
-            className={styles.chatInput} 
-          />
+<textarea
+  value={newMessage}
+  onChange={handleInputChange}
+  onPaste={handlePaste}
+  onKeyDown={(e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault(); // Prevents adding a newline
+      // Trigger message submission if not empty
+      if (newMessage.trim() && !roomLoading && !isSendingImage && !isSending) {
+        // Find the form element and submit it programmatically
+        e.target.form.requestSubmit();
+      }
+    }
+  }}
+  placeholder={isSendingImage ? "Sending image asset..." : roomLoading ? "Loading room..." : "Type a message... (Shift + Enter for new line)"}
+  disabled={roomLoading || isSendingImage || isSending}
+  rows={1}
+  className={styles.chatInput} 
+/>
           
           <button type="submit" disabled={roomLoading || isSendingImage || isSending} className={styles.sendBtn}>
              {isSendingImage ? (

@@ -120,6 +120,12 @@ export default function ChatFeed({
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const anchorMessageIdRef = useRef(null);
   const lastMessageIdRef = useRef(null);
+  // Helper to parse URL from text
+function extractUrl(text) {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const matches = text.match(urlRegex);
+  return matches ? matches[0] : null;
+}
 
   useEffect(() => {
     lastMessageIdRef.current = null;
@@ -165,16 +171,6 @@ export default function ChatFeed({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [openMenuId, setOpenMenuId]);
-
-  useLayoutEffect(() => {
-    if (anchorMessageIdRef.current && scrollContainerRef.current) {
-      const element = scrollContainerRef.current.querySelector(`[data-message-id="${anchorMessageIdRef.current}"]`);
-      if (element) {
-        element.scrollIntoView({ block: 'start', behavior: 'auto' });
-      }
-      anchorMessageIdRef.current = null;
-    }
-  }, [messages.length]);
 
   useEffect(() => {
     if (searchQuery.trim() || messages.length === 0 || isFetchingMore || anchorMessageIdRef.current) return;
@@ -237,6 +233,12 @@ export default function ChatFeed({
             const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
             const isMenuOpen = openMenuId === msgId;
             const isNearBottom = index >= filteredMessages.length - 3;
+            const isFirstFew = index < 3;
+            let menuClass = styles.dropdownMenu; // Default drops downward
+            if (!isFirstFew && isNearBottom) {
+              // Only flip upward if it's NOT in the first few messages AND it's near the bottom
+              menuClass = styles.dropdownMenuFlipped;
+            }
           
             return (
               <div 
@@ -258,25 +260,22 @@ export default function ChatFeed({
                       className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}
                       style={{ position: 'relative', paddingRight: msgId ? '28px' : '14px' }}
                     >
-                      {editingMessageId === msgId ? (
-                        <div className={styles.editFormInline}>
-                          <input 
-                            type="text" 
-                            value={editingText} 
-                            onChange={(e) => setEditingText(e.target.value)} 
-                            className={styles.editInputInline}
-                            autoFocus
-                          />
-                          <div className={styles.editActionsInline}>
-                            <button onClick={() => handleEditMessage(msgId)} className={styles.editSaveBtn}>Save</button>
-                            <button onClick={() => { setEditingMessageId(null); setEditingText(''); }} className={styles.editCancelBtn}>Cancel</button>
-                          </div>
-                        </div>
-                      ) : (
+
                         <div className={styles.messageText}>
                           {msg.image && (
                             <img src={msg.image} alt="Sent asset" className={styles.chatImage} onClick={() => setActiveLightboxImage(msg.image)} />
                           )}
+                          {(() => {
+  const url = extractUrl(msg.text);
+  return url ? (
+    <div className={styles.linkPreviewCard} onClick={() => window.open(url, '_blank')}>
+      <div className={styles.linkPreviewContent}>
+        <span className={styles.linkDomain}>{new URL(url).hostname}</span>
+        <p className={styles.linkTitle}>{url}</p>
+      </div>
+    </div>
+  ) : null;
+})()}
                           {msg.audio && (
                             <VoiceMessagePlayer audioSrc={msg.audio} />
                           )}
@@ -288,7 +287,7 @@ export default function ChatFeed({
                             <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
                           </div>
                         </div>
-                      )}
+                      
                       
                       {msgId && (
                         <div 
@@ -319,7 +318,7 @@ export default function ChatFeed({
                           </button>
                       
                           {isMenuOpen && (
-                            <div className={isNearBottom ? styles.dropdownMenuFlipped : styles.dropdownMenu}>
+                            <div className={menuClass} style={{padding:-0}}>
                               {isMe && (
                                 <>
                                   <button 
@@ -350,7 +349,7 @@ export default function ChatFeed({
                                     setInfoModalMessage(msg);
                                     setOpenMenuId(null);
                                   }}
-                                  style={{marginBottom:5}}
+                                  style={{marginBottom:0}}
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                                     <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
@@ -374,6 +373,7 @@ export default function ChatFeed({
                           )}
                         </div>
                       )}
+
                     </div>
                   </div>
                 </div>

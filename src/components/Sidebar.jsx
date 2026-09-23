@@ -16,22 +16,45 @@ export default function Sidebar({
   const isUserOnline = (uid) => {
     return activeUsers.some((activeUser) => activeUser.uid === uid);
   };
+  const formatLastSeen = (dateString) => {
+  if (!dateString) return 'Offline';
 
+  const lastSeenDate = new Date(dateString);
+  const now = new Date();
+
+  // Check if it's the same calendar day
+  const isToday = lastSeenDate.toDateString() === now.toDateString();
+
+  // Check if it was yesterday
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday = lastSeenDate.toDateString() === yesterday.toDateString();
+
+  if (isToday) {
+    // Show just the time if today (e.g., "03:37 PM")
+    return `Last seen at ${lastSeenDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  } else if (isYesterday) {
+    // Show "Yesterday" plus time
+    return `Last seen yesterday at ${lastSeenDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  } else {
+    // Show full date and time if older than a day (e.g., "Oct 24, 03:37 PM")
+    const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    return `Last seen on ${lastSeenDate.toLocaleDateString([], options)}`;
+  }
+};
   return (
     <aside className={`${styles.sidebar} ${isMobileMenuOpen ? styles.sidebarOpen : ''}`}>
-      {/* Mobile Close Button */}
       <button 
         type="button"
         className={styles.mobileCloseBtn} 
         onClick={onCloseMobileMenu}
         aria-label="Close sidebar"
       >
-<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
-  <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
-</svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
+        </svg>
       </button>
 
-      {/* Channels Section */}
       <div className={styles.sidebarSection}>
         <h4 className={styles.sidebarTitle}>Channels</h4>
         <div className={styles.roomList}>
@@ -50,7 +73,6 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Direct Messages Section */}
       <div className={styles.sidebarSection}>
         <h4 className={styles.sidebarTitle}>Direct Messages</h4>
         <div className={styles.userList}>
@@ -76,9 +98,12 @@ export default function Sidebar({
                         style={{ width: '28px', height: '28px' }}
                       />
                     </div>
-                    <span className={styles.userName} style={{ textAlign: 'left', flex: 1 }}>
-                      {u.name}
-                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', flex: 1, overflow: 'hidden' }}>
+                      <span className={styles.userName}>{u.name}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-subtle)' }}>
+                        {online ? 'Online' : formatLastSeen(u.lastSeen)}
+                      </span>
+                    </div>
                     {online && <div className={styles.statusDot} />}
                   </div>
                 </button>

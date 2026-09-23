@@ -13,6 +13,8 @@ import ChatFeed from './components/ChatFeed';
 import TypingIndicator from './components/TypingIndicator';
 import ChatInputForm from './components/ChatInputForm';
 import ThreadView from './components/ThreadView';
+import InfoModal from './components/InfoModal.jsx';
+import EditMessageModal from './components/EditMessageModal';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://chat-app-backend-1yfa.onrender.com';
 const ROOMS_LIST = ['general', 'tech', 'random', 'gaming'];
@@ -622,10 +624,10 @@ const optimisticMessage = {
     });
   };
 
-  const handleEditMessage = (msgId) => {
+const handleEditMessage = (newText) => {
     const socket = socketRef.current;
-    if (!editingText.trim() || !socket) return;
-    socket.emit('edit_message', { messageId: msgId, text: editingText, userId: user.uid, room });
+    if (!newText.trim() || !socket || !editingMessageId) return;
+    socket.emit('edit_message', { messageId: editingMessageId, text: newText, userId: user.uid, room });
     setEditingMessageId(null);
     setEditingText('');
   };
@@ -812,7 +814,23 @@ const optimisticMessage = {
           </div>
         </div>
       )}
-
+      {editingMessageId && (
+        <EditMessageModal 
+          isOpen={Boolean(editingMessageId)}
+          initialText={editingText}
+          onSave={handleEditMessage}
+          onClose={() => {
+            setEditingMessageId(null);
+            setEditingText('');
+          }}
+        />
+      )}
+{infoModalMessage && (
+  <InfoModal 
+    message={infoModalMessage} 
+    onClose={() => setInfoModalMessage(null)} 
+  />
+)}
       {deleteModalMessageId && (
         <DeleteModal 
           isDeleting={isDeleting}
