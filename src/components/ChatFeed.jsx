@@ -1,6 +1,97 @@
 import { useRef, useEffect, useState, useLayoutEffect } from 'react';
 import styles from '../App.module.css';
 
+// Waveform / Audio Player component for voice notes
+function VoiceMessagePlayer({ audioSrc }) {
+  const audioRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState('0:00');
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    const updateProgress = () => {
+      if (audio.duration) {
+        setProgress((audio.currentTime / audio.duration) * 100);
+      }
+    };
+
+    const handleLoadedMetadata = () => {
+      const mins = Math.floor(audio.duration / 60);
+      const secs = Math.floor(audio.duration % 60);
+      setDuration(`${mins}:${secs < 10 ? '0' : ''}${secs}`);
+    };
+
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setProgress(0);
+    };
+
+    audio.addEventListener('timeupdate', updateProgress);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('ended', handleEnded);
+
+    return () => {
+      audio.removeEventListener('timeupdate', updateProgress);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('ended', handleEnded);
+    };
+  }, []);
+
+  const togglePlay = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
+    } else {
+      audio.play().then(() => setIsPlaying(true)).catch((err) => console.warn("Playback error:", err));
+    }
+  };
+
+  const handleSeek = (e) => {
+    const audio = audioRef.current;
+    if (!audio || !audio.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const width = rect.width;
+    audio.currentTime = (clickX / width) * audio.duration;
+  };
+
+  return (
+    <div className={styles.voicePlayerContainer}>
+      <audio ref={audioRef} src={audioSrc} preload="metadata" />
+      <button type="button" onClick={togglePlay} className={styles.voicePlayBtn} aria-label={isPlaying ? "Pause" : "Play"}>
+        {isPlaying ? (
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5"/>
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.693-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/>
+          </svg>
+        )}
+      </button>
+
+      <div className={styles.voiceWaveformArea}>
+        <div className={styles.voiceProgressBarBg} onClick={handleSeek}>
+          <div className={styles.voiceProgressBarFill} style={{ width: `${progress}%` }} />
+        </div>
+        <div className={styles.voiceBarsDecoration}>
+          {[...Array(20)].map((_, i) => (
+            <span key={i} className={styles.voiceBar} style={{ height: `${Math.sin(i + 1) * 60 + 40}%` }} />
+          ))}
+        </div>
+      </div>
+
+      <span className={styles.voiceDuration}>{duration}</span>
+    </div>
+  );
+}
+
 export default function ChatFeed({
   messages,
   user,
@@ -22,32 +113,27 @@ export default function ChatFeed({
   setInfoModalMessage,
   loadMoreMessages,
   setActiveThreadMessage,
-  messagesEndRef
+  messagesEndRef,
+  setActiveLightboxImage
 }) {
   const scrollContainerRef = useRef(null);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const anchorMessageIdRef = useRef(null);
   const lastMessageIdRef = useRef(null);
 
-  // Reset references when changing rooms
   useEffect(() => {
     lastMessageIdRef.current = null;
     anchorMessageIdRef.current = null;
   }, [room]);
 
-  // Filter messages based on search query if user is searching
   const filteredMessages = messages.filter(
     (msg) => !searchQuery.trim() || (msg.text && msg.text.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  // Handle scroll to check for loading older messages or closing dropdowns
   const handleScroll = async (e) => {
     const { scrollTop } = e.target;
-    
-    // Trigger when user scrolls near the top
     if (scrollTop <= 20 && typeof loadMoreMessages === 'function' && !searchQuery.trim() && !isFetchingMore && filteredMessages.length > 0) {
       anchorMessageIdRef.current = filteredMessages[0]._id || filteredMessages[0].id;
-      
       setIsFetchingMore(true);
       try {
         await loadMoreMessages();
@@ -62,17 +148,13 @@ export default function ChatFeed({
       setOpenMenuId(null);
     }
   };
-  // Close dropdown menu when clicking outside
+
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // If no menu is open, do nothing
       if (!openMenuId) return;
-
-      // Check if the click happened inside an options menu or action trigger
       const clickedInsideMenu = event.target.closest(`.${styles.dropdownMenu}`) || 
                                 event.target.closest(`.${styles.dropdownMenuFlipped}`) || 
                                 event.target.closest(`.${styles.messageActionTrigger}`);
-
       if (!clickedInsideMenu) {
         setOpenMenuId(null);
       }
@@ -83,7 +165,7 @@ export default function ChatFeed({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [openMenuId, setOpenMenuId]);
-  // Restore scroll position precisely to the anchored message after older messages load
+
   useLayoutEffect(() => {
     if (anchorMessageIdRef.current && scrollContainerRef.current) {
       const element = scrollContainerRef.current.querySelector(`[data-message-id="${anchorMessageIdRef.current}"]`);
@@ -94,7 +176,6 @@ export default function ChatFeed({
     }
   }, [messages.length]);
 
-  // Scroll to bottom ONLY when a genuinely new message is appended at the end or on initial load
   useEffect(() => {
     if (searchQuery.trim() || messages.length === 0 || isFetchingMore || anchorMessageIdRef.current) return;
 
@@ -105,11 +186,18 @@ export default function ChatFeed({
       const isInitialLoad = lastMessageIdRef.current === null;
       lastMessageIdRef.current = lastMsgId;
       
-      if (messagesEndRef?.current) {
-        messagesEndRef.current.scrollIntoView({ behavior: isInitialLoad ? 'auto' : 'smooth' });
+      if (scrollContainerRef.current) {
+        if (isInitialLoad) {
+          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+        } else {
+          scrollContainerRef.current.scrollTo({
+            top: scrollContainerRef.current.scrollHeight,
+            behavior: 'smooth'
+          });
+        }
       }
     }
-  }, [messages, searchQuery, messagesEndRef, isFetchingMore]);
+  }, [messages, searchQuery, isFetchingMore]);
 
   return (
     <div 
@@ -187,11 +275,14 @@ export default function ChatFeed({
                       ) : (
                         <div className={styles.messageText}>
                           {msg.image && (
-                            <img src={msg.image} alt="Sent asset" className={styles.chatImage} onClick={() => window.open(msg.image, '_blank')} />
+                            <img src={msg.image} alt="Sent asset" className={styles.chatImage} onClick={() => setActiveLightboxImage(msg.image)} />
+                          )}
+                          {msg.audio && (
+                            <VoiceMessagePlayer audioSrc={msg.audio} />
                           )}
                           <div className={styles.messageFooterRow}>
                             <span>
-                              {msg.text !== "\u200B" && highlightText(msg.text, searchQuery)}
+                              {msg.text && msg.text !== "\u200B" && highlightText(msg.text, searchQuery)}
                               {msg.edited && <small className={styles.editedIndicatorTag}> (edited)</small>}
                             </span>
                             <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
@@ -273,13 +364,12 @@ export default function ChatFeed({
                                 className={styles.threadReplyTriggerBtn}
                                 title="Reply in thread"
                               >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12.793a.5.5 0 0 0 .854.353l2.853-2.853A1 1 0 0 1 4.414 12H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
-                                <path d="M3 3.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5M3 6a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9A.5.5 0 0 1 3 6m0 2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5"/>
-                              </svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                  <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12.793a.5.5 0 0 0 .854.353l2.853-2.853A1 1 0 0 1 4.414 12H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
+                                  <path d="M3 3.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5M3 6a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9A.5.5 0 0 1 3 6m0 2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5"/>
+                                </svg>
                                 <span>Thread</span>
                               </button>
-
                             </div>
                           )}
                         </div>

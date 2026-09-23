@@ -12,7 +12,7 @@ import DeleteModal from './components/DeleteModal';
 import ChatFeed from './components/ChatFeed';
 import TypingIndicator from './components/TypingIndicator';
 import ChatInputForm from './components/ChatInputForm';
-import ThreadView from './components/ThreadView'; // Adjust path if necessary
+import ThreadView from './components/ThreadView';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://chat-app-backend-1yfa.onrender.com';
 const ROOMS_LIST = ['general', 'tech', 'random', 'gaming'];
@@ -48,6 +48,17 @@ export default function App() {
   const [threadMessages, setThreadMessages] = useState([]);
   const [threadInput, setThreadInput] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [activeLightboxImage, setActiveLightboxImage] = useState(null);
+  const [scale, setScale] = useState(1);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  
+  // Audio Recording States
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedAudioUrl, setRecordedAudioUrl] = useState(null);
+  const [audioBlob, setAudioBlob] = useState(null);
+  const [recordingTime, setRecordingTime] = useState(0);
 
   const roomRef = useRef(room);
   const socketRef = useRef(null);
@@ -57,80 +68,195 @@ export default function App() {
   const messagesEndRef = useRef(null);
   const feedRef = useRef(null); 
 
-  const handleSendThreadReply = (e) => {
-  e.preventDefault();
-  const socket = socketRef.current;
-  if (!threadInput.trim() || !socket || !activeThreadMessage) return;
+  // Audio Recording Refs
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const timerRef = useRef(null);
 
-  const replyData = {
-    text: threadInput.trim(),
-    sender: user.displayName || user.email,
-    senderUid: user.uid,
-    avatar: user.photoURL,
-    room: room,
-    parentId: activeThreadMessage._id,
-    createdAt: new Date(),
-  };
-
-  socket.emit('send_message', replyData, (response) => {
-    if (response?.success) {
-      setThreadInput('');
-    }
-  });
-};
-useEffect(() => {
-  if (!activeThreadMessage) {
-    setThreadMessages([]);
-    return;
-  }
-  fetch(`${BACKEND_URL}/api/messages/thread?parentId=${activeThreadMessage._id}`)
-    .then((res) => res.json())
-    .then((data) => setThreadMessages(data))
-    .catch((err) => console.error("Failed to load thread messages:", err));
-}, [activeThreadMessage]);
-
-// Listen for incoming live thread replies via socket
-useEffect(() => {
-  const socket = socketRef.current;
-  if (!socket) return;
-
-  const handleNewMessage = (message) => {
-    if (activeThreadMessage && message.parentId === activeThreadMessage._id) {
-      setThreadMessages((prev) => [...prev, message]);
-    }
-  };
-
-  socket.on('receive_message', handleNewMessage);
-  return () => socket.off('receive_message', handleNewMessage);
-}, [activeThreadMessage]);
-// Debounced server-side search effect
-useEffect(() => {
-  if (!searchQuery.trim()) {
-    setSearchResults([]);
-    setIsSearching(false);
-    return;
-  }
-
-  setIsSearching(true);
-  const timer = setTimeout(async () => {
+  // 1. Start Recording
+  const startRecording = async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/messages/search?room=${room}&query=${encodeURIComponent(searchQuery)}`);
-      if (res.ok) {
-        const data = await res.json();
-        setSearchResults(data);
-      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorderRef.current.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioUrl = URL.createObjectURL(blob);
+        setAudioBlob(blob);
+        setRecordedAudioUrl(audioUrl);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      timerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+
     } catch (err) {
-      console.error('Failed to search messages:', err);
-    } finally {
-      setIsSearching(false);
+      console.error("Microphone permission denied or error:", err);
+      alert("Could not access microphone. Please check your browser permissions.");
     }
-  }, 400); // 400ms debounce
+  };
 
-  return () => clearTimeout(timer);
-}, [searchQuery, room]);
+  // 2. Stop Recording
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      clearInterval(timerRef.current);
+    }
+  };
 
-// Use searchResults when searching, otherwise use regular messages
-const displayedMessages = searchQuery.trim() ? searchResults : messages;
+  // 3. Cancel Recording
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+    setRecordedAudioUrl(null);
+    setAudioBlob(null);
+    clearInterval(timerRef.current);
+  };
+
+  // 4. Send Audio Message
+  const handleSendAudio = async () => {
+    if (!audioBlob) return;
+    const reader = new FileReader();
+    reader.readAsDataURL(audioBlob);
+    reader.onloadend = () => {
+      const base64Audio = reader.result;
+      const socket = socketRef.current;
+      if (!socket) return;
+
+      const clientMessageId = 'client-' + Date.now() + '-' + Math.random();
+const optimisticMessage = {
+  _id: clientMessageId,
+  clientMessageId: clientMessageId,
+  text: '',
+  audio: base64Audio, // <-- Ensure this is included
+  sender: user.displayName || user.email,
+  senderUid: user.uid,
+  avatar: user.photoURL,
+  room: room,
+  createdAt: new Date(),
+  pending: true
+};
+
+      setMessages((prev) => [...prev, optimisticMessage]);
+      setRecordedAudioUrl(null);
+      setAudioBlob(null);
+
+      socket.emit('send_message', {
+        clientMessageId,
+        text: '',
+        audio: base64Audio,
+        sender: user.displayName || user.email,
+        senderUid: user.uid,
+        avatar: user.photoURL,
+        room: room,
+      });
+    };
+  };
+
+  const handleSendThreadReply = (e) => {
+    e.preventDefault();
+    const socket = socketRef.current;
+    if (!threadInput.trim() || !socket || !activeThreadMessage) return;
+
+    const replyData = {
+      text: threadInput.trim(),
+      sender: user.displayName || user.email,
+      senderUid: user.uid,
+      avatar: user.photoURL,
+      room: room,
+      parentId: activeThreadMessage._id,
+      createdAt: new Date(),
+    };
+
+    socket.emit('send_message', replyData, (response) => {
+      if (response?.success) {
+        setThreadInput('');
+      }
+    });
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setActiveLightboxImage(null);
+      }
+    };
+
+    if (activeLightboxImage) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeLightboxImage]);
+
+  useEffect(() => {
+    if (!activeThreadMessage) {
+      setThreadMessages([]);
+      return;
+    }
+    fetch(`${BACKEND_URL}/api/messages/thread?parentId=${activeThreadMessage._id}`)
+      .then((res) => res.json())
+      .then((data) => setThreadMessages(data))
+      .catch((err) => console.error("Failed to load thread messages:", err));
+  }, [activeThreadMessage]);
+
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket) return;
+
+    const handleNewMessage = (message) => {
+      if (activeThreadMessage && message.parentId === activeThreadMessage._id) {
+        setThreadMessages((prev) => [...prev, message]);
+      }
+    };
+
+    socket.on('receive_message', handleNewMessage);
+    return () => socket.off('receive_message', handleNewMessage);
+  }, [activeThreadMessage]);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/messages/search?room=${room}&query=${encodeURIComponent(searchQuery)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data);
+        }
+      } catch (err) {
+        console.error('Failed to search messages:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, room]);
+
+  const displayedMessages = searchQuery.trim() ? searchResults : messages;
 
   const loadMoreMessages = async () => {
     if (isFetchingMore || !hasMorePages || messages.length === 0) return;
@@ -156,12 +282,57 @@ const displayedMessages = searchQuery.trim() ? searchResults : messages;
     }
   };
 
-// Filter out thread replies globally so they NEVER show up in the main feed
-const mainChannelMessages = messages.filter((msg) => !msg.parentId);
+  const handleCloseLightbox = () => {
+    setActiveLightboxImage(null);
+    setScale(1);
+    setPosition({ x: 0, y: 0 });
+  };
 
-const filteredMessages = searchQuery.trim()
-  ? mainChannelMessages.filter((msg) => msg.text && msg.text.toLowerCase().includes(searchQuery.toLowerCase()))
-  : mainChannelMessages;
+  const handleWheel = (e) => {
+    e.preventDefault();
+    const zoomIntensity = 0.1;
+    let newScale = scale + (e.deltaY < 0 ? zoomIntensity : -zoomIntensity);
+    newScale = Math.min(Math.max(newScale, 1), 4);
+    
+    if (newScale === 1) {
+      setPosition({ x: 0, y: 0 });
+    }
+    setScale(newScale);
+  };
+
+  const handleMouseDown = (e) => {
+    if (scale > 1) {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDragging && scale > 1) {
+      setPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleDoubleClick = () => {
+    if (scale > 1) {
+      setScale(1);
+      setPosition({ x: 0, y: 0 });
+    } else {
+      setScale(2.5);
+    }
+  };
+
+  const mainChannelMessages = messages.filter((msg) => !msg.parentId);
+  const filteredMessages = searchQuery.trim()
+    ? mainChannelMessages.filter((msg) => msg.text && msg.text.toLowerCase().includes(searchQuery.toLowerCase()))
+    : mainChannelMessages;
 
   useEffect(() => {
     if (!user || messages.length === 0) return;
@@ -253,110 +424,106 @@ const filteredMessages = searchQuery.trim()
     return () => unsubscribe();
   }, []);
 
-useEffect(() => {
-  if (!user) return;
-  let isCancelled = false;
+  useEffect(() => {
+    if (!user) return;
+    let isCancelled = false;
 
-  // Ensure any existing socket is cleaned up before creating a new one
-  if (socketRef.current) {
-    socketRef.current.disconnect();
-    socketRef.current = null;
-  }
-
-  async function initSocket() {
-    try {
-      const token = await user.getIdToken();
-      if (isCancelled) return;
-
-      const socket = io(BACKEND_URL, { autoConnect: true, auth: { token } });
-      socketRef.current = socket;
-
-      let fcmDeviceToken = null;
-      try {
-        if ('serviceWorker' in navigator) {
-          const messaging = getMessaging();
-          const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-          await navigator.serviceWorker.ready;
-          fcmDeviceToken = await getToken(messaging, {
-            vapidKey: "BI2_PHDGRR7jW2ybN8Vyo_ozgB1TYjw5k9omVSDIsFMMaKUk8L6lInMVo63bXxe-19Rb7QQlLNPgpfnW_88_Q-A", 
-            serviceWorkerRegistration: registration
-          });
-        }
-      } catch (pushErr) {
-        console.warn("FCM Token skipped:", pushErr);
-      }
-      
-      socket.emit('user_connected', {
-        uid: user.uid,
-        name: user.displayName,
-        email: user.email,
-        avatar: user.photoURL,
-        pushSubscription: fcmDeviceToken 
-      });
-
-      socket.on('active_users_list', (users) => {
-        setActiveUsers(Array.from(new Map(users.map(u => [u.uid, u])).values()));
-      });
-
-      socket.on('message_updated', (updatedMsg) => {
-        setMessages((prev) => prev.map((msg) => (msg._id === updatedMsg._id ? updatedMsg : msg)));
-      });
-
-      socket.on('message_deleted', (deletedId) => {
-        setMessages((prev) => prev.filter((msg) => msg._id !== deletedId));
-      });
-      
-socket.on('receive_message', (message) => {
-  if (message.parentId) return; // Skip thread replies
-
-  setMessages((prev) => {
-    // 1. Try matching by clientMessageId first
-    if (message.clientMessageId) {
-      const index = prev.findIndex(m => m.clientMessageId === message.clientMessageId);
-      if (index !== -1) {
-        const updated = [...prev];
-        updated[index] = message;
-        return updated;
-      }
-    }
-
-    // 2. Fallback: If it's from you, look for a pending message with matching text to replace
-    if (message.senderUid === user.uid) {
-      const pendingIndex = prev.findIndex(m => m.pending && m.text === message.text);
-      if (pendingIndex !== -1) {
-        const updated = [...prev];
-        updated[pendingIndex] = message;
-        return updated;
-      }
-    }
-
-    // Otherwise, append normally
-    return [...prev, message];
-  });
-}); 
-
-      socket.on('display_typing', ({ userName, room: typingRoom }) => {
-        if (typingRoom === roomRef.current) setTypingUser(userName);
-      });
-
-      socket.on('hide_typing', ({ room: typingRoom }) => {
-        if (typingRoom === roomRef.current) setTypingUser(null);
-      });
-    } catch (err) {
-      console.error("Socket init error:", err);
-    }
-  }
-
-  initSocket();
-
-  return () => {
-    isCancelled = true;
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
     }
-  };
-}, [user, playAlertSound]);
+
+    async function initSocket() {
+      try {
+        const token = await user.getIdToken();
+        if (isCancelled) return;
+
+        const socket = io(BACKEND_URL, { autoConnect: true, auth: { token } });
+        socketRef.current = socket;
+
+        let fcmDeviceToken = null;
+        try {
+          if ('serviceWorker' in navigator) {
+            const messaging = getMessaging();
+            const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+            await navigator.serviceWorker.ready;
+            fcmDeviceToken = await getToken(messaging, {
+              vapidKey: "BI2_PHDGRR7jW2ybN8Vyo_ozgB1TYjw5k9omVSDIsFMMaKUk8L6lInMVo63bXxe-19Rb7QQlLNPgpfnW_88_Q-A", 
+              serviceWorkerRegistration: registration
+            });
+          }
+        } catch (pushErr) {
+          console.warn("FCM Token skipped:", pushErr);
+        }
+        
+        socket.emit('user_connected', {
+          uid: user.uid,
+          name: user.displayName,
+          email: user.email,
+          avatar: user.photoURL,
+          pushSubscription: fcmDeviceToken 
+        });
+
+        socket.on('active_users_list', (users) => {
+          setActiveUsers(Array.from(new Map(users.map(u => [u.uid, u])).values()));
+        });
+
+        socket.on('message_updated', (updatedMsg) => {
+          setMessages((prev) => prev.map((msg) => (msg._id === updatedMsg._id ? updatedMsg : msg)));
+        });
+
+        socket.on('message_deleted', (deletedId) => {
+          setMessages((prev) => prev.filter((msg) => msg._id !== deletedId));
+        });
+        
+        socket.on('receive_message', (message) => {
+          if (message.parentId) return;
+
+          setMessages((prev) => {
+            if (message.clientMessageId) {
+              const index = prev.findIndex(m => m.clientMessageId === message.clientMessageId);
+              if (index !== -1) {
+                const updated = [...prev];
+                updated[index] = message;
+                return updated;
+              }
+            }
+
+            if (message.senderUid === user.uid) {
+              const pendingIndex = prev.findIndex(m => m.pending && (m.text === message.text || (m.audio && message.audio)));
+              if (pendingIndex !== -1) {
+                const updated = [...prev];
+                updated[pendingIndex] = message;
+                return updated;
+              }
+            }
+
+            return [...prev, message];
+          });
+        }); 
+
+        socket.on('display_typing', ({ userName, room: typingRoom }) => {
+          if (typingRoom === roomRef.current) setTypingUser(userName);
+        });
+
+        socket.on('hide_typing', ({ room: typingRoom }) => {
+          if (typingRoom === roomRef.current) setTypingUser(null);
+        });
+      } catch (err) {
+        console.error("Socket init error:", err);
+      }
+    }
+
+    initSocket();
+
+    return () => {
+      isCancelled = true;
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, [user, playAlertSound]);
 
   useEffect(() => {
     if (!user) return;
@@ -412,7 +579,8 @@ socket.on('receive_message', (message) => {
     try { await signInWithPopup(auth, googleProvider); } 
     catch (error) { console.error("Login Failed:", error); }
   };
-const handleSendMessage = async (e) => {
+
+  const handleSendMessage = async (e) => {
     e.preventDefault();
     const socket = socketRef.current;
     if ((!newMessage.trim() && !selectedImage) || !socket || isSending) return;
@@ -424,9 +592,8 @@ const handleSendMessage = async (e) => {
     setNewMessage('');
     setSelectedImage(null);
 
-    // 1. Create optimistic message with the clientMessageId
     const optimisticMessage = {
-      _id: clientMessageId, // temporary ID
+      _id: clientMessageId,
       clientMessageId: clientMessageId,
       text: messageText || "\u200B",
       sender: user.displayName || user.email,
@@ -440,11 +607,6 @@ const handleSendMessage = async (e) => {
 
     setMessages((prev) => [...prev, optimisticMessage]);
 
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 10);
-
-    // 2. Send payload including the clientMessageId to the server
     socket.emit('send_message', {
       clientMessageId,
       text: messageText || "\u200B",
@@ -565,6 +727,7 @@ const handleSendMessage = async (e) => {
                 isFetchingMore={isFetchingMore}
                 setShowScrollBtn={setShowScrollBtn}
                 setActiveThreadMessage={setActiveThreadMessage}
+                setActiveLightboxImage={setActiveLightboxImage} 
               />
               <TypingIndicator typingUser={typingUser} />
               <ThreadView 
@@ -579,9 +742,9 @@ const handleSendMessage = async (e) => {
 
               {showScrollBtn && (
                 <button onClick={scrollToBottom} className={styles.scrollToBottomBtn} aria-label="Scroll to bottom">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-double-down" viewBox="0 0 16 16">
-                    <path fill-rule="evenodd" d="M1.646 6.646a.5.5 0 0 1 .708 0L8 12.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
-                    <path fill-rule="evenodd" d="M1.646 2.646a.5.5 0 0 1 .708 0L8 8.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path fillRule="evenodd" d="M1.646 6.646a.5.5 0 0 1 .708 0L8 12.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+                    <path fillRule="evenodd" d="M1.646 2.646a.5.5 0 0 1 .708 0L8 8.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
                   </svg>
                 </button>
               )}
@@ -596,8 +759,52 @@ const handleSendMessage = async (e) => {
                 fileInputRef={fileInputRef}
                 isSending={isSending}
                 handleImageSelect={handleImageSelect}
+                isRecording={isRecording}
+                startRecording={startRecording}
+                stopRecording={stopRecording}
+                cancelRecording={cancelRecording}
+                recordedAudioUrl={recordedAudioUrl}
+                setRecordedAudioUrl={setRecordedAudioUrl}
+                recordingTime={recordingTime}
+                handleSendAudio={handleSendAudio}
               />
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeLightboxImage && (
+        <div 
+          className={styles.lightboxOverlay} 
+          onClick={handleCloseLightbox}
+          onWheel={handleWheel}
+        >
+          <button 
+            className={styles.lightboxCloseBtn} 
+            onClick={handleCloseLightbox}
+            aria-label="Close lightbox"
+          >
+            ×
+          </button>
+          <div 
+            className={styles.lightboxContentWrapper} 
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onDoubleClick={handleDoubleClick}
+          >
+            <img 
+              src={activeLightboxImage} 
+              alt="Enlarged view" 
+              className={styles.lightboxImage} 
+              style={{
+                transform: `translate(${position.x}px, ${position.y}px) scale(${scale})`,
+                cursor: scale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in'
+              }}
+              draggable={false}
+            />
           </div>
         </div>
       )}
@@ -619,6 +826,7 @@ const handleSendMessage = async (e) => {
           }}
         />
       )}
+
       {infoModalMessage && (
         <div className={styles.modalOverlay} onClick={() => setInfoModalMessage(null)}>
           <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
@@ -648,6 +856,7 @@ const handleSendMessage = async (e) => {
           </div>
         </div>
       )}
+
       {isSettingsOpen && (
         <div className={styles.modalOverlay} onClick={() => setIsSettingsOpen(false)}>
           <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
