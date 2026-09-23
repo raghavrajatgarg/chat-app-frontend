@@ -569,13 +569,6 @@ const optimisticMessage = {
         const token = await user.getIdToken();
         if (isCancelled) return;
 
-const socket = io(BACKEND_URL, { autoConnect: true, auth: { token } });
-        socketRef.current = socket;
-        async function initSocket() {
-      try {
-        const token = await user.getIdToken();
-        if (isCancelled) return;
-
         const socket = io(BACKEND_URL, { autoConnect: true, auth: { token } });
         socketRef.current = socket;
 
@@ -631,7 +624,6 @@ const socket = io(BACKEND_URL, { autoConnect: true, auth: { token } });
         let fcmDeviceToken = null;
         try {
           if ('serviceWorker' in navigator) {
-            socket.emit("realRegisterUser", user.uid);
             const messaging = getMessaging();
             const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
             await navigator.serviceWorker.ready;
