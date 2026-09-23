@@ -623,8 +623,11 @@ const optimisticMessage = {
         const token = await user.getIdToken();
         if (isCancelled) return;
 
-        const socket = io(BACKEND_URL, { autoConnect: true, auth: { token } });
+const socket = io(BACKEND_URL, { autoConnect: true, auth: { token } });
         socketRef.current = socket;
+
+        // 👇 ADD THIS LINE TO FORCE MAPPING ON THE SERVER IMMEDIATELY
+        socket.emit("realRegisterUser", user.uid);
 
         let fcmDeviceToken = null;
         try {
