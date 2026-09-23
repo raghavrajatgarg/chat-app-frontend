@@ -12,6 +12,7 @@ import DeleteModal from './components/DeleteModal';
 import ChatFeed from './components/ChatFeed';
 import TypingIndicator from './components/TypingIndicator';
 import ChatInputForm from './components/ChatInputForm';
+import ThreadView from './components/ThreadView'; // Adjust path if necessary
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://chat-app-backend-1yfa.onrender.com';
 const ROOMS_LIST = ['general', 'tech', 'random', 'gaming'];
@@ -525,38 +526,15 @@ const filteredMessages = searchQuery.trim()
                 setActiveThreadMessage={setActiveThreadMessage}
               />
               <TypingIndicator typingUser={typingUser} />
-              {activeThreadMessage && (
-  <div className={styles.threadDrawer}>
-    <div className={styles.threadHeader}>
-      <h3>Thread</h3>
-      <button onClick={() => setActiveThreadMessage(null)} className={styles.closeThreadBtn}>×</button>
-    </div>
-    <div className={styles.originalMessagePreview}>
-      <strong>{activeThreadMessage.sender}:</strong> {activeThreadMessage.text}
-    </div>
-    <div className={styles.threadMessagesFeed}>
-      {threadMessages.map((msg) => (
-        <div key={msg._id} className={styles.threadMessageItem}>
-          <img src={msg.avatar} alt="" className={styles.messageAvatar} />
-          <div>
-            <span className={styles.messageSenderName}>{msg.sender}</span>
-            <p className={styles.threadReplyText}>{msg.text}</p>
-          </div>
-        </div>
-      ))}
-    </div>
-    <form onSubmit={handleSendThreadReply} className={styles.threadForm}>
-      <input 
-        type="text" 
-        value={threadInput} 
-        onChange={(e) => setThreadInput(e.target.value)} 
-        placeholder="Reply in thread..." 
-        className={styles.threadInput}
-      />
-      <button type="submit" className={styles.threadSendBtn}>Send</button>
-    </form>
-  </div>
-)}
+              <ThreadView 
+                activeThreadMessage={activeThreadMessage}
+                setActiveThreadMessage={setActiveThreadMessage}
+                threadMessages={threadMessages}
+                user={user}
+                threadInput={threadInput}
+                setThreadInput={setThreadInput}
+                handleSendThreadReply={handleSendThreadReply}
+              />
 
               {showScrollBtn && (
                 <button onClick={scrollToBottom} className={styles.scrollToBottomBtn} aria-label="Scroll to bottom">
