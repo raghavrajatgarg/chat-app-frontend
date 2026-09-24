@@ -82,7 +82,25 @@ export default function App() {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
+  const isPrivateRoom = room.includes('_');
+  
+let activeHeaderTitle = room;
+let activeHeaderAvatar = null;
+let activeHeaderUser = null;
 
+if (isPrivateRoom) {
+  // Extract the other user's UID from the room string (e.g., 'uid1_uid2')
+  const otherUid = room.split('_').find((id) => id !== user?.uid);
+  const foundUser = allRegisteredUsers.find((u) => u.uid === otherUid);
+  
+  if (foundUser) {
+    activeHeaderTitle = foundUser.name;
+    activeHeaderAvatar = foundUser.avatar;
+    activeHeaderUser = foundUser;
+  }
+} else {
+  activeHeaderTitle = `# ${room}`;
+}
   // Socket event listeners for signaling
 // 1. Add an ICE candidate queue ref near your other refs
   const iceCandidateQueueRef = useRef([]);
@@ -121,7 +139,45 @@ pc.ontrack = (event) => {
 
     return pc;
   };
+// Helper function to format last seen (can be placed inside App.jsx or imported)
+const formatLastSeen = (dateString) => {
+  if (!dateString) return 'Offline';
 
+  const lastSeenDate = new Date(dateString);
+  const now = new Date();
+  const isToday = lastSeenDate.toDateString() === now.toDateString();
+
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday = lastSeenDate.toDateString() === yesterday.toDateString();
+
+  if (isToday) {
+    return `Last seen at ${lastSeenDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  } else if (isYesterday) {
+    return `Last seen yesterday at ${lastSeenDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  } else {
+    const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+    return `Last seen on ${lastSeenDate.toLocaleDateString([], options)}`;
+  }
+};
+
+// Determine if the current room is a direct message or a public channel
+
+if (isPrivateRoom) {
+  const otherUid = room.split('_').find((id) => id !== user?.uid);
+  const foundUser = allRegisteredUsers.find((u) => u.uid === otherUid);
+  
+  if (foundUser) {
+    activeHeaderTitle = foundUser.name;
+    activeHeaderAvatar = foundUser.avatar;
+    activeHeaderUser = foundUser;
+  }
+} else {
+  activeHeaderTitle = `# ${room}`;
+}
+
+// Check if the DM partner is currently online using activeUsers array
+const isHeaderUserOnline = activeHeaderUser ? activeUsers.some((u) => u.uid === activeHeaderUser.uid) : false;
   // Triggered when User A clicks "Call" on Sidebar
 const startCall = async (userToCall) => {
     // Prevent starting multiple calls simultaneously if already calling/connected
@@ -846,7 +902,7 @@ const handleEditMessage = (newText) => {
       }
     }
   };
-
+  // Determine if the current room is a direct message or a public channel
   if (loading) return <div className={styles.loader}><h3>Loading...</h3></div>;
 
   return (
@@ -863,6 +919,15 @@ const handleEditMessage = (newText) => {
             handleSvgClick={() => searchInputRef.current?.focus()}
             onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             onOpenSettings={() => setIsSettingsOpen(true)}
+            room={room}
+            isPrivateRoom={isPrivateRoom}
+            headerTitle={activeHeaderTitle}
+            headerAvatar={activeHeaderAvatar}
+            activeHeaderUser={activeHeaderUser}
+            isHeaderUserOnline={isHeaderUserOnline}
+            formatLastSeen={formatLastSeen}
+            startCall={startCall}
+            activeUsers={activeUsers}
           />
 
           <div className={styles.mainContent}>

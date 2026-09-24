@@ -111,21 +111,10 @@ export default function Sidebar({
                   {online ? 'Online' : formatLastSeen(u.lastSeen)}
                 </span>
               </div>
-              {online && <div className={styles.statusDot} />}
             </div>
 
             {/* Call button separated cleanly as a standalone button */}
-            <button 
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation(); // Prevents opening private chat when clicking call
-                startCall(u);
-              }} 
-              className={styles.callIconButton}
-              title="Start Video Call"
-            >
-              📞
-            </button>
+            {online && <div className={styles.statusDot} />}
           </div>
         );
       })}

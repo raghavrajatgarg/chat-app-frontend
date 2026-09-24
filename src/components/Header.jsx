@@ -1,10 +1,25 @@
 import { useState } from 'react';
 import styles from '../App.module.css';
 
-export default function Header({ user, searchQuery, setSearchQuery, searchInputRef, handleSvgClick, onToggleMobileMenu, onOpenSettings }) {
+export default function Header({
+  user, 
+  searchQuery, 
+  setSearchQuery, 
+  searchInputRef, 
+  handleSvgClick, 
+  onToggleMobileMenu, 
+  onOpenSettings,
+  room,
+  isPrivateRoom,
+  headerTitle,
+  headerAvatar,
+  activeHeaderUser,
+  isHeaderUserOnline,
+  formatLastSeen,
+  startCall
+}) {
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [isFullScreenSearchOpen, setIsFullScreenSearchOpen] = useState(false);
-
   return (
     <>
       <header className={styles.header}>
@@ -17,13 +32,26 @@ export default function Header({ user, searchQuery, setSearchQuery, searchInputR
             <path fillRule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/>
           </svg>  
         </button>
-        
-        <div className={styles.headerLeft}>
-          <img src={user?.photoURL} alt="Profile" className={styles.profileImg} />
-          <div className={styles.headerUserInfo}>
-            <span className={styles.headerUserName}>{user?.displayName}</span>
-            <span className={styles.liveIndicator}>● Live Node Link</span>
-          </div>
+        <div className={styles.headerUserInfoContainer}>
+          {isPrivateRoom &&(
+            <img 
+              src={headerAvatar} 
+              alt={`${headerTitle}'s avatar`} 
+              className={styles.userAvatar} 
+            />
+          )}
+        <div className={styles.headerUserInfo}>
+          <span className={styles.headerUserName}>{headerTitle}</span>
+          
+          {/* Dynamic Status: Shows "Online" or the exact "Last seen..." timestamp */}
+          {isPrivateRoom &&(
+            <span className={`${styles.lastSeenHeader} ${isHeaderUserOnline ? styles.liveIndicator : ''}`}>
+              {isHeaderUserOnline 
+                ? 'Online' 
+                : formatLastSeen(activeHeaderUser?.lastSeen)}
+            </span>
+          )}
+        </div>
         </div>
 
         {/* Desktop Search Bar */}
@@ -65,6 +93,18 @@ export default function Header({ user, searchQuery, setSearchQuery, searchInputR
 
         {/* Right side: Mobile 3-dot menu & Gear Icon */}
         <div className={styles.headerRightControls}>
+          {isPrivateRoom && activeHeaderUser && (
+          <button 
+            className={styles.callIconButton} 
+            onClick={() => startCall(activeHeaderUser)}
+            title={`Call ${activeHeaderUser.name}`}
+            aria-label="Start Call"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.568 17.568 0 0 0 4.168 6.608 17.569 17.569 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.678.678 0 0 0-.58-.122l-2.19.547a1.745 1.745 0 0 1-1.657-.959L5.451 8.275a1.745 1.745 0 0 1-.959-1.657l.547-2.19a.678.678 0 0 0-.122-.58L3.654 1.328z"/>
+            </svg>
+          </button>
+        )}
   <div className={styles.mobileMenuContainer}>
     <button 
       className={styles.threeDotBtn}
