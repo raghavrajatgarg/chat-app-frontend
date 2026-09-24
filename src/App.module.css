@@ -861,28 +861,33 @@ html, body, .container {
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(5, 7, 12, 0.8);
+  background: rgba(5, 7, 12, 0.85); /* Slightly darker focus backdrop */
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9998;
+  /* Crucial: Must be higher than the sidebar's stacking layer */
+  z-index: 99999999999999999 !important; 
 }
+
 
 .modalCard {
   background: rgba(15, 23, 42, 0.98);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  padding: 24px;
-  border-radius: 16px;
-  width: 100%;
-  max-width: 360px;
-  text-align: center;
-  border: 1px solid var(--border-input);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
   color: #fff;
-  animation: modalScaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 16px;
+  padding: 24px;
+  
+  /* Crucial: Forces the layout box out from under the app containers */
+  width: 90vw !important;
+  max-width: 1000px !important;
+  box-sizing: border-box;
+  
+  /* Ensures component transformations work properly inside the stacking layer */
+  position: relative;
+  z-index: 2; 
 }
 
 .modalTitle {
@@ -2250,3 +2255,33 @@ html, body {
     cursor: pointer;
     font-weight: 500;
   }
+
+  /* Update your styles inside App.module.css */
+.modalOverlay {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(3, 7, 18, 0.85); /* Dark clean focusing mask */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 99999999999999 !important; /* Force completely above the sidebar layer layout stack */
+  left: 0 !important;
+  top: 0 !important;
+}
+
+.modalCard {
+  background: #0d111a !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 25px 70px -10px rgba(0, 0, 0, 0.8) !important;
+  color: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  width: 92vw !important;
+  max-width: 1050px !important;
+  box-sizing: border-box !important;
+  position: relative;
+}

@@ -120,6 +120,56 @@ export default function ChatFeed({
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const anchorMessageIdRef = useRef(null);
   const lastMessageIdRef = useRef(null);
+    const isInitialLoadRef = useRef(true);
+
+  // Helper helper function to execute precision snapping to scroll bottom
+  const scrollToBottomDirect = (behavior = 'auto') => {
+    // We request an animation frame to let the DOM fully compute element heights
+    requestAnimationFrame(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({
+          top: scrollContainerRef.current.scrollHeight,
+          behavior: behavior
+        });
+      }
+    });
+  };
+
+  // 1. TRIGGER ON ROOM CHANGE: Reset layout tracker indexes completely
+  useEffect(() => {
+    isInitialLoadRef.current = true;
+    anchorMessageIdRef.current = null;
+  }, [room]);
+
+  // 2. TRIGGER ON INITIAL LOAD / ROOM ENTRY: Snap instantly to bottom once items populate
+  useEffect(() => {
+    if (!roomLoading && messages.length > 0 && isInitialLoadRef.current) {
+      scrollToBottomDirect('auto'); // Instant snap on load prevents visual loading jank
+      isInitialLoadRef.current = false;
+    }
+  }, [messages, roomLoading]);
+
+  // 3. TRIGGER ON SEND / RECEIVE: Smoothly push viewport layout to bottom tracking additions
+  useEffect(() => {
+    if (messages.length === 0 || isInitialLoadRef.current) return;
+
+    const lastMsg = messages[messages.length - 1];
+    const isMyOwnMessage = lastMsg?.senderUid === user.uid;
+
+    if (scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      
+      // Smart Auto-Scroll Threshold Calculation:
+      // Check if user is already near the bottom zone (within 350px padding area)
+      const isUserNearBottom = (container.scrollHeight - container.scrollTop - container.clientHeight) < 350;
+
+      // Force scroll down if I am the sender OR if user is actively watching live messages
+      if (isMyOwnMessage || isUserNearBottom) {
+        scrollToBottomDirect('smooth'); // Premium animated feel for live events
+      }
+    }
+  }, [messages, user.uid]);
+
   // Helper to parse URL from text
 function extractUrl(text) {
   const urlRegex = /(https?:\/\/[^\s]+)/g;

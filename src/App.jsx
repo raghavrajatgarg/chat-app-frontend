@@ -16,6 +16,7 @@ import ThreadView from './components/ThreadView';
 import InfoModal from './components/InfoModal.jsx';
 import EditMessageModal from './components/EditMessageModal';
 import CallModal from "./components/CallModal";
+import ScreenCaptureModal from './components/ScreenCaptureModal';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://chat-app-backend-1yfa.onrender.com';
 const ROOMS_LIST = ['general', 'tech', 'random', 'gaming'];
@@ -68,6 +69,8 @@ export default function App() {
   const [recordingTime, setRecordingTime] = useState(0);
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
+  const [isStudioOpen, setIsStudioOpen] = useState(false); // Make sure it reads 'isStudioOpen'
+
 
   const roomRef = useRef(room);
   const socketRef = useRef(null);
@@ -640,21 +643,29 @@ const optimisticMessage = {
           setCallStatus("incoming");
         });
 
-        socket.on("call_accepted", async (signal) => {
-          setCallStatus("connected");
-          const pc = peerConnectionRef.current;
-          if (pc) {
-            await pc.setRemoteDescription(new RTCSessionDescription(signal));
-            while (iceCandidateQueueRef.current.length > 0) {
-              const candidate = iceCandidateQueueRef.current.shift();
-              try {
-                await pc.addIceCandidate(new RTCIceCandidate(candidate));
-              } catch (err) {
-                console.error("Error adding queued ice candidate:", err);
-              }
-            }
-          }
-        });
+// Locate inside your App.jsx -> initSocket() hook
+socket.on("call_accepted", async (signal) => {
+  setCallStatus("connected");
+  
+  // STEP FIX: Commit the active stream reference explicitly to trigger a React render update
+  if (localStreamRef.current) {
+    setLocalStream(localStreamRef.current);
+  }
+
+  const pc = peerConnectionRef.current;
+  if (pc) {
+    await pc.setRemoteDescription(new RTCSessionDescription(signal));
+    while (iceCandidateQueueRef.current.length > 0) {
+      const candidate = iceCandidateQueueRef.current.shift();
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        console.error("Error adding queued ice candidate:", err);
+      }
+    }
+  }
+});
+
 
         socket.on("ice_candidate", async (candidate) => {
           const pc = peerConnectionRef.current;
@@ -712,7 +723,7 @@ const optimisticMessage = {
         });
         
 socket.on('receive_message', (message) => {
-  // FIX: Ignore messages that belong to a different room/DM chat
+  // PRIVACY BOUNDARY SECURITY: Throw away messages intended for distinct conversation scopes
   if (message.room !== roomRef.current) return;
   if (message.parentId) return;
 
@@ -738,6 +749,7 @@ socket.on('receive_message', (message) => {
     return [...prev, message];
   });
 });
+
 
         socket.on('display_typing', ({ userName, room: typingRoom }) => {
           if (typingRoom === roomRef.current) setTypingUser(userName);
@@ -1014,6 +1026,7 @@ const handleEditMessage = (newText) => {
                 setRecordedAudioUrl={setRecordedAudioUrl}
                 recordingTime={recordingTime}
                 handleSendAudio={handleSendAudio}
+                setIsStudioOpen={setIsStudioOpen}
               />
             </div>
           </div>
@@ -1157,6 +1170,12 @@ const handleEditMessage = (newText) => {
   localStream={localStream}
   remoteStream={remoteStream}
 />
+ {/* Move it here, out of ChatInputForm! */}
+      <ScreenCaptureModal 
+        isOpen={isStudioOpen}
+        onClose={() => setIsStudioOpen(false)}
+        onSaveScreenshot={(base64Data) => setSelectedImage(base64Data)}
+      />
     </div>
   );
 }

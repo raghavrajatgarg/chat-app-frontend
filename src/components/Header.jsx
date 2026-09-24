@@ -108,7 +108,7 @@ export default function Header({
   <div className={styles.mobileMenuContainer}>
     <button 
       className={styles.threeDotBtn}
-      popovertarget="mobile-header-popover"
+      popoverTarget="mobile-header-popover"
       aria-label="More options"
     >
       <svg xmlns="http://w3.org" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">

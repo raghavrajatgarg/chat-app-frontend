@@ -19,11 +19,15 @@ export default function ChatInputForm({
   recordedAudioUrl,
   setRecordedAudioUrl,
   recordingTime,
-  handleSendAudio
+  handleSendAudio,
+  setSelectedImage,
+  setIsStudioOpen
 }) {
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const menuRef = useRef(null);
   const textareaRef = useRef(null);
+  // Inside src/components/ChatInputForm.jsx (Near the top of the component)
+
 
   // Automatically reset textarea height when the message is cleared/sent
   useEffect(() => {
@@ -141,6 +145,16 @@ export default function ChatInputForm({
                 </button>
                 <div>
                 </div>
+                    <button 
+                      type="button" 
+                      onClick={() => { setShowAttachMenu(false); setIsStudioOpen(true); }} 
+                      className={styles.dropupItem}
+                    >
+                      <svg xmlns="http://w3.org" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 1 0v-2.5h2.5a.5.5 0 0 0 0-1zM12 1.5a.5.5 0 0 1 .5-.5h2.5a.5.5 0 0 1 .5.5v2.5a.5.5 0 0 1-1 0v-2.5h-2.5a.5.5 0 0 1-.5-.5M1.5 12a.5.5 0 0 1 .5.5v2.5h2.5a.5.5 0 0 1 0 1H1.5a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 .5-.5m13 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2.5v-2.5a.5.5 0 0 1 .5-.5M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 1h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1"/>
+                      </svg>
+                      <span>Screenshot Studio</span>
+                    </button>
                 <button type="button" onClick={handleSelectAudio} className={`${styles.dropupItem} ${styles.voiceBtn}`}>
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-mic" viewBox="0 0 16 16">
                     <path d="M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5"/>
@@ -200,6 +214,7 @@ export default function ChatInputForm({
           </button>
         </form>
       )}
-    </div>
+      {/* Inject custom modal instance parameters loop inside base layout wrapper container */}
+    </div> // End of formWidthWrapper div node
   );
 }
