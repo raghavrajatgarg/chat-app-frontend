@@ -70,6 +70,8 @@ export default function App() {
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
   const [isStudioOpen, setIsStudioOpen] = useState(false); // Make sure it reads 'isStudioOpen'
+  const [captureType, setCaptureType] = useState('screen'); // 'screen' or 'camera'
+
 
 
   const roomRef = useRef(room);
@@ -1027,6 +1029,7 @@ const handleEditMessage = (newText) => {
                 recordingTime={recordingTime}
                 handleSendAudio={handleSendAudio}
                 setIsStudioOpen={setIsStudioOpen}
+                setCaptureType={setCaptureType}
               />
             </div>
           </div>
@@ -1175,6 +1178,7 @@ const handleEditMessage = (newText) => {
         isOpen={isStudioOpen}
         onClose={() => setIsStudioOpen(false)}
         onSaveScreenshot={(base64Data) => setSelectedImage(base64Data)}
+        captureType={captureType}
       />
     </div>
   );

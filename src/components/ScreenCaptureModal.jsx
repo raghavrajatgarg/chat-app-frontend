@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react';
 import styles from '../App.module.css';
-
-export default function ScreenCaptureModal({ isOpen, onClose, onSaveScreenshot }) {
+export default function ScreenCaptureModal({ isOpen, onClose, onSaveScreenshot, captureType = 'screen' }) {
   const canvasRef = useRef(null);
   const [hasCaptured, setHasCaptured] = useState(false);
   const [editMode, setEditMode] = useState('draw'); // Modes: 'draw' or 'crop'
@@ -36,13 +35,23 @@ export default function ScreenCaptureModal({ isOpen, onClose, onSaveScreenshot }
     };
   };
 
-  // Triggers browser native source display picker framework window
-  const handleCapture = async () => {
+   const handleCapture = async () => {
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { displaySurface: "monitor" },
-        audio: false
-      });
+      let stream;
+
+      if (captureType === 'camera') {
+        console.log("📸 Initializing native hardware video camera feed...");
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" }, // Prioritizes rear camera for snapping external bugs
+          audio: false
+        });
+      } else {
+        console.log("💻 Initializing display screen media capture window picker...");
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: { displaySurface: "monitor" },
+          audio: false
+        });
+      }
       
       const video = document.createElement('video');
       video.srcObject = stream;
@@ -68,15 +77,19 @@ export default function ScreenCaptureModal({ isOpen, onClose, onSaveScreenshot }
               setHasCaptured(true);
             };
           }
+          // Safely shut down background video streaming channels to release the hardware indicator
           stream.getTracks().forEach(track => track.stop());
         }, 150);
       };
 
       await video.play();
     } catch (err) {
-      console.error("Native screenshot pick framework closed or rejected:", err);
+      console.error("Native cross-platform capture picker interface initialization failed:", err);
+      alert("Could not access media. Please verify hardware permissions are granted.");
+      onClose();
     }
   };
+
 
   // Normalizes mouse or pointer coordinates matching screen scale bounds
   const getCanvasCoords = (e) => {
@@ -274,6 +287,10 @@ export default function ScreenCaptureModal({ isOpen, onClose, onSaveScreenshot }
               <button type="button" className={styles.sendBtn} onClick={handleCapture} style={{ background: 'var(--accent-blue)', margin: '0 auto', fontSize: '14px' }}>
                 Open Window Picker
               </button>
+              <button type="button" className={styles.sendBtn} onClick={handleCapture} style={{ background: 'var(--accent-blue)', margin: '0 auto', fontSize: '14px' }}>
+                {captureType === 'camera' ? 'Launch Camera Feed' : 'Open Window Picker'}
+              </button>
+
             </div>
           )}
         </div>
