@@ -34,6 +34,48 @@ export default function ScreenCaptureModal({ isOpen, onClose, onSaveScreenshot, 
       setHistoryIndex(updatedHistory.length - 1);
     };
   };
+  // Add this new useEffect inside your ScreenCaptureModal component right above your handleCapture function:
+// Replace the mobile auto-mount useEffect block in ScreenCaptureModal.jsx completely with this:
+useEffect(() => {
+  if (isOpen && captureType === 'camera' && !hasCaptured) {
+    console.log("📸 Pre-loaded native mobile camera asset detected. Initializing editor studio canvas...");
+    
+    // Small timeout ensures the DOM renders the canvas reference node context safely
+    const timer = setTimeout(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        console.error("❌ Canvas element not ready yet for camera preview.");
+        return;
+      }
+      
+      const ctx = canvas.getContext('2d');
+      const imgInstance = new Image();
+      
+      // Use the open string token value passed down dynamically from the parent wrapper
+      imgInstance.src = typeof isOpen === 'string' ? isOpen : canvas.toDataURL(); 
+      
+      imgInstance.onload = () => {
+        // Sync resolution size constraints precisely matching your snapped picture metrics
+        canvas.width = imgInstance.naturalWidth || imgInstance.width;
+        canvas.height = imgInstance.naturalHeight || imgInstance.height;
+        
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(imgInstance, 0, 0);
+        
+        // Initialize history stack array tracks with this master raw snapshot context
+        setOriginalImage(imgInstance);
+        setHistory([imgInstance]);
+        setHistoryIndex(0);
+        
+        // Transition layouts immediately straight to drawing tool state options
+        setHasCaptured(true); 
+      };
+    }, 60);
+
+    return () => clearTimeout(timer);
+  }
+}, [isOpen, captureType, hasCaptured]);
+
 
    const handleCapture = async () => {
     try {
