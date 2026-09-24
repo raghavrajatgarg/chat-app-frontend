@@ -66,6 +66,7 @@ export default function App() {
   const [callerInfo, setCallerInfo] = useState({ name: "", from: "" });
   const [incomingSignal, setIncomingSignal] = useState(null);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
 
   const roomRef = useRef(room);
@@ -83,7 +84,7 @@ export default function App() {
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
   const isPrivateRoom = room.includes('_');
-  
+
 let activeHeaderTitle = room;
 let activeHeaderAvatar = null;
 let activeHeaderUser = null;
@@ -107,12 +108,20 @@ if (isPrivateRoom) {
 
 
   // Setup media tracks (WebRTC)
-  const setupMedia = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    localStreamRef.current = stream;
-    if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-    return stream;
-  };
+const setupMedia = async () => {
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  } catch (err) {
+    console.warn("Video device not found, falling back to audio-only...", err);
+    stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+  }
+  
+  localStreamRef.current = stream;
+  setLocalStream(stream); // FIX: Update state so React re-renders video components
+  if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+  return stream;
+};
 
   const createPeerConnection = (targetUid) => {
     const pc = new RTCPeerConnection(peerConfig);
@@ -180,51 +189,38 @@ if (isPrivateRoom) {
 const isHeaderUserOnline = activeHeaderUser ? activeUsers.some((u) => u.uid === activeHeaderUser.uid) : false;
   // Triggered when User A clicks "Call" on Sidebar
 const startCall = async (userToCall) => {
-    // Prevent starting multiple calls simultaneously if already calling/connected
-    if (callStatus !== "idle") return;
+  if (callStatus !== "idle") return;
 
-    try {
-      setCallStatus("calling");
-      setCallerInfo({ name: userToCall.name, from: userToCall.uid });
-      
-      let stream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      } catch (err) {
-        console.warn("Video device not found, falling back to audio-only...", err);
-        stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+  try {
+    setCallStatus("calling");
+    setCallerInfo({ name: userToCall.name, from: userToCall.uid });
+    
+    let stream = await setupMedia(); // FIX: Use setupMedia helper to handle state and ref uniformly
+
+    const pc = createPeerConnection(userToCall.uid);
+    
+    const senders = pc.getSenders();
+    stream.getTracks().forEach((track) => {
+      const alreadyExists = senders.some(sender => sender.track === track);
+      if (!alreadyExists) {
+        pc.addTrack(track, stream);
       }
-        
-      localStreamRef.current = stream;
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
+    });
 
-      const pc = createPeerConnection(userToCall.uid);
-      
-      // Ensure we don't duplicate tracks if sender already exists
-      const senders = pc.getSenders();
-      stream.getTracks().forEach((track) => {
-        const alreadyExists = senders.some(sender => sender.track === track);
-        if (!alreadyExists) {
-          pc.addTrack(track, stream);
-        }
-      });
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
 
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      socketRef.current.emit("start_call", {
-        signal: offer,
-        to: userToCall.uid,
-        name: user?.name || "User"
-      });
-    } catch (err) {
-      console.error("Media devices error:", err);
-      alert("Could not access your camera or microphone. Please check your device connections and browser permissions.");
-      setCallStatus("idle");
-    }
-  };
+    socketRef.current.emit("start_call", {
+      signal: offer,
+      to: userToCall.uid,
+      name: user?.name || "User"
+    });
+  } catch (err) {
+    console.error("Media devices error:", err);
+    alert("Could not access your camera or microphone. Please check your device connections and browser permissions.");
+    setCallStatus("idle");
+  }
+};
   // Triggered when User B clicks "Accept"
   const acceptCall = async () => {
     const socket = socketRef.current;
@@ -240,17 +236,19 @@ const startCall = async (userToCall) => {
   };
 
   // Terminate/Decline call cleanup
-  const endCallCleanup = () => {
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => track.stop());
-    }
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-      peerConnectionRef.current = null;
-    }
-    setCallStatus("idle");
-    setIncomingSignal(null);
-  };
+const endCallCleanup = () => {
+  if (localStreamRef.current) {
+    localStreamRef.current.getTracks().forEach((track) => track.stop());
+  }
+  if (peerConnectionRef.current) {
+    peerConnectionRef.current.close();
+    peerConnectionRef.current = null;
+  }
+  setLocalStream(null); // FIX: Clear local stream state
+  setRemoteStream(null);
+  setCallStatus("idle");
+  setIncomingSignal(null);
+};
 
   const handleHangup = () => {
     const socket = socketRef.current;
@@ -713,31 +711,33 @@ const optimisticMessage = {
           setMessages((prev) => prev.filter((msg) => msg._id !== deletedId));
         });
         
-        socket.on('receive_message', (message) => {
-          if (message.parentId) return;
+socket.on('receive_message', (message) => {
+  // FIX: Ignore messages that belong to a different room/DM chat
+  if (message.room !== roomRef.current) return;
+  if (message.parentId) return;
 
-          setMessages((prev) => {
-            if (message.clientMessageId) {
-              const index = prev.findIndex(m => m.clientMessageId === message.clientMessageId);
-              if (index !== -1) {
-                const updated = [...prev];
-                updated[index] = message;
-                return updated;
-              }
-            }
+  setMessages((prev) => {
+    if (message.clientMessageId) {
+      const index = prev.findIndex(m => m.clientMessageId === message.clientMessageId);
+      if (index !== -1) {
+        const updated = [...prev];
+        updated[index] = message;
+        return updated;
+      }
+    }
 
-            if (message.senderUid === user.uid) {
-              const pendingIndex = prev.findIndex(m => m.pending && (m.text === message.text || (m.audio && message.audio)));
-              if (pendingIndex !== -1) {
-                const updated = [...prev];
-                updated[pendingIndex] = message;
-                return updated;
-              }
-            }
+    if (message.senderUid === user.uid) {
+      const pendingIndex = prev.findIndex(m => m.pending && (m.text === message.text || (m.audio && message.audio)));
+      if (pendingIndex !== -1) {
+        const updated = [...prev];
+        updated[pendingIndex] = message;
+        return updated;
+      }
+    }
 
-            return [...prev, message];
-          });
-        }); 
+    return [...prev, message];
+  });
+});
 
         socket.on('display_typing', ({ userName, room: typingRoom }) => {
           if (typingRoom === roomRef.current) setTypingUser(userName);
@@ -1154,7 +1154,7 @@ const handleEditMessage = (newText) => {
   callerName={callerInfo.name}
   onAccept={acceptCall}
   onReject={handleHangup}
-  localStream={localStreamRef.current}
+  localStream={localStream}
   remoteStream={remoteStream}
 />
     </div>

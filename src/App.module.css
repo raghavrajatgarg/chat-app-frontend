@@ -2234,3 +2234,19 @@ html, body {
     color: var(--accent-emerald);
   }
 }
+.screenCaptureModal {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.8);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+}
+  .triggerBtn { 
+    background: #059669;
+    color: #fff;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+  }

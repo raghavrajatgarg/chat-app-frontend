@@ -1,6 +1,6 @@
 headerUserInfo = headerUserName + lastSeenHeader +? liveIndicator + lastSeen
 
 
-1. snipping tool like feature to be added where when the user clicks a button, a screenshot is clicked and a preview opens where user can crop, resize, draw, edit, etc. and send the screenshot
+1. feature to be added where when the user clicks a button, a screenshot is clicked and a preview opens where user can crop, resize, draw, edit, etc. and send the screenshot
 2. anyone can see dm's, e.g: i am directly messaging user A, if User B is currently also viewing his dm's with user A, my personal dm with user A will show up on user B's screen until he refreshes or reopens the chat
 3. in webrtc calling, if the other person picks the call, the sending persons screen doesnt update
