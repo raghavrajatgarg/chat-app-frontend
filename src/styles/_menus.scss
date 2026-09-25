@@ -1,0 +1,272 @@
+/* ==========================================================================
+   7. Dropdowns & Inline Message Editing
+   ========================================================================== */
+
+.dropdownMenu,
+.dropdownMenuFlipped {
+  position: absolute;
+  right: 0;
+  margin-bottom: 6px;
+  width: 160px;
+  background-color: #1e1e2f;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+}
+
+.dropdownMenu {
+  top: 100%;
+}
+
+.dropdownMenuFlipped {
+  bottom: 100%;
+}
+
+.dropdownItemDelete {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--accent-red);
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  z-index: 5000;
+  font-weight: 500;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dropdownItemDelete:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.dropdownItemEdit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  z-index: 5000;
+  font-weight: 500;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dropdownItemEdit:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+.editFormInline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-width: 220px;
+  padding: 4px 0;
+  box-sizing: border-box;
+}
+
+.dropdownItemInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--accent-blue);
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  z-index: 5000;
+  font-weight: 500;
+  border-bottom: 1px solid var(--border-color);
+  transition: 0.1s linear;
+}
+
+.dropdownItemInfo:hover {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.editInputInline {
+  background: rgba(15, 23, 42, 0.95) !important;
+  color: #ffffff !important;
+  border: 1px solid var(--accent-blue) !important;
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  font-size: 14px !important;
+  outline: none !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.editActionsInline {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+  margin-top: 2px;
+  padding-bottom: 12px;
+}
+
+.editSaveBtn {
+  background: var(--accent-emerald) !important;
+  color: white !important;
+  border: none !important;
+  padding: 6px 14px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  cursor: pointer !important;
+  font-weight: 600 !important;
+  transition: opacity 0.2s;
+}
+
+.editSaveBtn:hover {
+  opacity: 0.9;
+}
+
+.editCancelBtn {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+  border: none !important;
+  padding: 6px 14px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  cursor: pointer !important;
+  font-weight: 500 !important;
+  transition: background-color 0.2s;
+}
+
+.editCancelBtn:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.editedIndicatorTag {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 10px;
+  font-style: italic;
+  margin-left: 6px;
+  user-select: none;
+}
+
+/* ==========================================================================
+   8. Chat Input, Form & Search (Optimized: No redundant blur)
+   ========================================================================== */
+
+.chatForm {
+  display: flex;
+  padding: 15px;
+  background: rgba(13, 17, 26, 0.96);
+  /* Solid glass fallback */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-top: 1px solid var(--border-color);
+  gap: 12px;
+}
+
+.chatInput {
+  flex: 1;
+  padding: 12px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border-input);
+  font-size: 14px;
+  outline: none;
+  background: var(--bg-input);
+  color: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.chatInput:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.sendBtn {
+  display: flex;
+  gap: 8px;
+  padding: 10px 25px;
+  background: var(--accent-blue);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(59, 99, 235, 0.3);
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+.sendBtn:hover {
+  background: var(--accent-blue-hover);
+  transform: translateY(-1px);
+}
+
+.searchBarWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  max-width: 300px;
+  width: 100%;
+  margin: 0 15px;
+  gap: 2px;
+  border: 1px solid var(--border-input);
+  border-radius: 8px;
+  padding-left: 9px;
+  flex-direction: row;
+  background: var(--bg-input);
+}
+
+.headerSearchInput {
+  width: 100%;
+  background: transparent;
+  color: #fff;
+  border: none;
+  border-radius: 0 8px 8px 0;
+  padding: 8px 16px;
+  font-size: 14px;
+  outline: none;
+}
+
+.clearSearchBtn {
+  position: absolute;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.searchTextHighlight {
+  background-color: rgba(234, 179, 8, 0.3) !important;
+  color: #fde047 !important;
+  padding: 0 2px;
+  border-radius: 4px;
+  font-weight: 600;
+  border: 1px solid rgba(234, 179, 8, 0.4);
+}
+
+.searchSvg {
+  width: 20px;
+  height: 20px;
+  margin-right: 4px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+

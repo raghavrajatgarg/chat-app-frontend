@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import styles from '../App.module.css';
+import styles from '../styles/App.module.scss';
 const formatTime = (seconds) => {
   const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
   const remainingSeconds = (seconds % 60).toString().padStart(2, '0');

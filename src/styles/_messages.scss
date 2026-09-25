@@ -1,0 +1,176 @@
+/* ==========================================================================
+   6. Messages, Feed & Bubbles
+   ========================================================================== */
+/* In App.module.css */
+.messageFeed {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  /* Critical for flex containers containing Virtuoso */
+  overflow: hidden;
+}
+
+.messageRow {
+  display: flex;
+  width: 100%;
+}
+
+.messageWrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.messageContentWrapper {
+  display: flex;
+  gap: 10px;
+  max-width: 75%;
+  align-items: flex-start;
+}
+
+.messageAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  margin-top: 2px;
+  object-fit: cover;
+}
+
+.messageSenderName {
+  display: block;
+  color: var(--text-subtle);
+  font-size: 11px;
+  margin-bottom: 4px;
+  margin-left: 4px;
+  text-align: left;
+  font-weight: 500;
+}
+
+.messageBubbleBase {
+  position: relative;
+  color: #fff;
+  padding: 5px 14px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  word-break: break-word;
+  font-size: 14px;
+  line-height: 1.5;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  /* 🌟 Stacks image, text, and elements vertically */
+  align-items: flex-start;
+  gap: 8px;
+  width: fit-content;
+  /* 🌟 Replaces max-content to prevent forced wide boxes */
+  max-width: 100%;
+  text-align: left;
+  z-index: 9999;
+}
+
+.messageBubbleMe {
+  background: var(--accent-blue);
+  border-radius: 12px 12px 2px 12px;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.25);
+  margin: 5px;
+}
+
+.messageBubbleOther {
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid var(--border-color);
+  border-radius: 12px 12px 12px 2px;
+  margin-bottom: 15px;
+}
+
+/* 🌟 New container for text and timestamp to sit side-by-side */
+.messageFooterRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.messageText {
+  flex-grow: 1;
+  word-break: break-word;
+  white-space: pre-wrap;
+  /* Crucial for keeping user-created line breaks */
+}
+
+/* 🌟 Reset timestamp styles so they sit naturally in the row */
+.messageTimestampMe,
+.messageTimestampOther {
+  position: relative;
+  display: inline-block;
+  font-size: 10px;
+  user-select: none;
+  opacity: 0.6;
+  white-space: nowrap;
+  margin-bottom: 0;
+  margin-left: auto;
+  /* Pushes the timestamp to the far right of the text */
+}
+
+.messageActionTrigger {
+
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+}
+
+.messageTimestampMe {
+  color: #bfdbfe;
+}
+
+.messageTimestampOther {
+  color: var(--text-subtle);
+}
+
+.messageWrapper:hover .messageActionTrigger,
+.messageBubbleBase:hover .messageActionTrigger {
+  opacity: 1;
+}
+
+.messageActionTrigger.forceVisible {
+  opacity: 1;
+}
+
+.optionsButton {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0 0 0 10px;
+  transition: color 0.2s;
+  scale: 0.7;
+  opacity: 0.85 !important;
+  margin-top: -10px !important;
+}
+
+.optionsButton:hover {
+  background: transparent !important;
+  color: #93c5fd;
+}
+
+.chatImage {
+  max-width: 280px;
+  max-height: 200px;
+  border-radius: 8px;
+  margin-top: 8px;
+  display: block;
+  cursor: pointer;
+  object-fit: cover;
+}
+

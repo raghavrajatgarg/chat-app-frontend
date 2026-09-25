@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import styles from '../App.module.css';
+import styles from '../styles/App.module.scss';
 
 // Waveform / Audio Player component for voice notes
 function VoiceMessagePlayer({ audioSrc }) {

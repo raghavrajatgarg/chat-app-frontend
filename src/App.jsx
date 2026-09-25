@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { signOut } from 'firebase/auth';
-import styles from './App.module.css';
+import styles from './styles/App.module.scss';
 import { auth } from './firebase';
 import LoginCard from './components/LoginCard';
 import ChatShell from './components/ChatShell';

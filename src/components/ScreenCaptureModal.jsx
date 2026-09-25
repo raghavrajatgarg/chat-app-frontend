@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import styles from '../App.module.css';
+import styles from '../styles/App.module.scss';
 
 export default function ScreenCaptureModal({ isOpen, onClose, onSaveScreenshot, captureType = 'screen', selectedImage = null }) {
   const canvasRef = useRef(null);

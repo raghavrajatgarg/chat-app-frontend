@@ -1,0 +1,1667 @@
+/* App.module.css */
+/* Apply to all buttons, links, and input triggers */
+button, 
+a, 
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+}
+@media(max-width: 768px){
+/* Add a subtle visual scale or opacity shift when the button is actively pressed */
+button:active {
+  opacity: 0.8;
+  transform: scale(0.95); /* Subtle squish effect makes it feel like a physical button */
+  transition: transform 0.2s ease;
+}
+}
+
+/* ==========================================================================
+   1. Lock down the Viewport Body (Stops the micro-scrolling bounce)
+   ========================================================================== */
+html, body, .container {
+  max-width: 100vw;
+  height: 100dvh; /* Fixes dynamic mobile address bar scaling glitches */
+  overflow: hidden; /* Hard lock: Stops the entire viewport page from scrolling */
+  position: relative;
+}
+
+/* ==========================================================================
+   2. Clean up & Hide Scroll Wheels inside inner panels (like message logs)
+   ========================================================================== */
+.messageFeed, .sidebar, .userList {
+  /* Allows inner components to scroll naturally if content overflows... */
+  overflow-y: auto; 
+  
+  /* ...BUT strips away the ugly visual browser scrollbar tracks completely! */
+  scrollbar-width: none; /* For Firefox */
+  -ms-overflow-style: none; /* For Internet Explorer and Edge */
+}
+
+/* Hide scrollbars for Chrome, Safari, and Opera */
+.messageFeed::-webkit-scrollbar,
+.sidebar::-webkit-scrollbar,
+.userList::-webkit-scrollbar {
+  display: none; 
+}
+
+
+
+.container {
+  font-family: sans-serif;
+  background: #0a0e17;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  color: #e2e8f0;
+}
+
+.loader {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100dvh;
+  font-family: sans-serif;
+  background: #0a0e17;
+  color: #fff;
+}
+
+.loginContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 20px;
+}
+
+.loginCard {
+  background: #111827;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px;
+  max-width: 400px;
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid #1f2937;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  text-align: center;
+}
+
+.title {
+  color: #fff;
+  margin-bottom: 20px;
+  font-size: 32px;
+  letter-spacing: 0.4px;
+}
+
+.subtitle {
+  color: #9ca3af;
+  margin-bottom: 20px;
+}
+
+.googleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 280px;
+  padding: 12px 20px;
+  font-size: 16px;
+  background: #ffffff;
+  color: #5f6368;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.googleBtn:hover {
+  background-color: #f8f9fa;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.chatWrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  background: #111827;
+  border-left: 1px solid #1f2937;
+  border-right: 1px solid #1f2937;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 20px;
+  background: #111827;
+  border-bottom: 1px solid #1f2937;
+}
+
+.profileImg {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid #2563eb;
+}
+
+.logoutBtn {
+  padding: 6px 14px;
+  background: transparent;
+  color: #ef4444;
+  border: 1px solid #ef4444;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: bold;
+  transition: 0.2s;
+}
+
+.mainContent {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 240px;
+  background: #111827;
+  border-right: 1px solid #1f2937;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.sidebarTitle {
+  margin: 0 0 15px 0;
+  color: #94a3b8;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.userList {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.userItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.userAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.userName {
+  font-size: 14px;
+  color: #e2e8f0;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  background: #10b981;
+  border-radius: 50%;
+  margin-left: auto;
+}
+/* 🛠️ REPLACE YOUR EXISTING .chatWindow STYLES WITH THIS */
+.chatWindow {
+  display: grid;
+  grid-template-rows: 1fr auto; /* Chat feed takes the top, input row locks to the bottom */
+  height: 100%;
+  position: relative !important; /* 🌟 CRUCIAL: Absolute elements anchor directly to this wrapper frame! */
+  overflow: hidden;
+}
+
+.messageFeed {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.messageRow {
+  display: flex;
+  width: 100%;
+}
+
+.messageContentWrapper {
+  display: flex;
+  gap: 10px;
+  max-width: 75%;
+}
+
+.messageAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  margin-top: 2px;
+}
+
+.messageSenderName {
+  display: block;
+  color: #94a3b8;
+  font-size: 11px;
+  margin-bottom: 4px;
+  margin-left: 4px;
+}
+
+.messageBubbleBase {
+  color: #fff;
+  padding: 10px 14px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+  word-break: break-word;
+  font-size: 15px;
+  line-height: 1.4;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  max-width: 100%;
+}
+
+.messageBubbleMe {
+  background: #2563eb;
+  border-radius: 8px 8px 2px 8px !important;
+}
+
+.messageBubbleOther {
+  background: #1e293b;
+  border-radius: 8px 8px 8px 2px !important;
+}
+
+.messageText {
+  flex-grow: 1;
+}
+
+.messageTimestampMe {
+  font-size: 10px;
+  color: #bfdbfe;
+  margin-left: auto;
+  white-space: nowrap;
+  padding-top: 4px;
+  user-select: none;
+}
+
+.messageTimestampOther {
+  font-size: 10px;
+  color: #94a3b8;
+  margin-left: auto;
+  white-space: nowrap;
+  padding-top: 4px;
+  user-select: none;
+}
+
+.chatForm {
+  display: flex;
+  padding: 15px;
+  background: #111827;
+  border-top: 1px solid #1f2937;
+  gap: 12px;
+}
+
+.chatInput {
+  flex: 1;
+  padding: 14px 20px;
+  border-radius: 30px;
+  border: 1px solid #374151;
+  font-size: 15px;
+  outline: none;
+  background: #1f2937;
+  color: #fff;
+}
+
+.sendBtn {
+  padding: 14px 28px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 30px;
+  font-size: 15px;
+  fontWeight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+  box-shadow: 0 4px 12px rgba(37,99,235,0.2);
+}
+
+/* Update your existing .sidebar */
+.sidebar {
+  width: 240px;
+  background: #111827;
+  border-right: 1px solid #1f2937;
+  display: flex;
+  flex-direction: column;
+  padding: 15px;
+  box-sizing: border-box;
+  height: 100%;
+  overflow: hidden; /* Prevents outer scroll */
+}
+
+/* Each half takes up equal space (50%) with independent scroll */
+.sidebarSection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0; /* Critical for flex child scrolling */
+}
+
+.sidebarDivider {
+  height: 1px;
+  background: #1f2937;
+  margin: 15px 0;
+}
+
+.sidebarTitle {
+  margin: 0 0 10px 0;
+  color: #94a3b8;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.userList {
+  flex: 1;
+  overflow-y: auto; /* Independent scroll for users */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 4px;
+}
+
+.roomList {
+  flex: 1;
+  overflow-y: auto; /* Independent scroll for rooms */
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 4px;
+}
+
+.roomBtn {
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.roomBtn:hover {
+  background: #1f2937;
+  color: #fff;
+}
+
+.roomBtnActive {
+  background: #2563eb;
+  color: #fff;
+  font-weight: 500;
+}
+
+.roomBtnActive:hover {
+  background: #1d4ed8;
+}
+
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Unread Badge Counter */
+.unreadBadge {
+  background-color: #ef4444;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* WhatsApp Style Typing Indicator */
+.typingIndicatorRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  padding-left: 8px;
+}
+
+.typingText {
+  font-size: 12px;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.typingBubble {
+  background-color: #1f2937;
+  padding: 10px 14px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  background-color: #9ca3af;
+  border-radius: 50%;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes bounce {
+  0%, 80%, 100% { 
+    transform: scale(0); 
+  } 
+  40% { 
+    transform: scale(1.0); 
+  }
+}
+/* --- Polished Header Styles --- */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: #111827;
+  border-bottom: 1px solid #1f2937;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profileImg {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.headerUserInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.headerUserName {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f3f4f6;
+}
+
+.liveIndicator {
+  font-size: 12px;
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* --- Professional Modal Styles --- */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.modalCard {
+  background: #1f2937;
+  padding: 24px;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 360px;
+  text-align: center;
+  border: 1px solid #374151;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  color: #fff;
+  animation: modalScaleUp 0.2s ease-out;
+}
+
+@keyframes modalScaleUp {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.modalTitle {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #f3f4f6;
+}
+
+.modalDescription {
+  color: #9ca3af;
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.modalLoadingWrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  color: #10b981;
+  font-size: 14px;
+  padding: 10px 0;
+}
+
+.modalActions {
+  display: flex;
+  gap: 12px;
+}
+
+.modalCancelBtn {
+  flex: 1;
+  padding: 10px;
+  background: #374151;
+  border: none;
+  border-radius: 8px;
+  color: #f3f4f6;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.modalCancelBtn:hover {
+  background: #4b5563;
+}
+
+.modalDeleteBtn {
+  flex: 1;
+  padding: 10px;
+  background: #ef4444;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.modalDeleteBtn:hover {
+  background: #dc2626;
+}
+/* --- Message Hover Dropdown & Actions --- */
+.messageWrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.messageActionTrigger {
+  position: absolute;
+  top: -3.5px !important;
+  right: -0.5px !important;
+  scale: 0.75;
+}
+
+.optionsButton {
+  background: transparent !important; /* Forces the background to stay transparent forever */
+  border: none;
+  color: #ffffff; /* Pure white icon */
+  cursor: pointer;
+  width: 28px;  /* Keeps a comfortable hitbox width */
+  height: 28px; /* Keeps a comfortable hitbox height */
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+  opacity: 0.55 !important;
+}
+
+/* Optional: Subtle color shift on hover so the user knows they are hovering it, without any background fill */
+.optionsButton:hover {
+  background: transparent !important;
+  color: #93c5fd; /* Soft blue highlight on hover (or keep it #ffffff if you want no color change at all) */
+}
+.dropdownMenu {
+  position: absolute;
+  right: 0;
+  top: 24px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  overflow: hidden;
+  min-width: 110px;
+}
+
+.dropdownItemDelete {
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  color: #f87171;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.dropdownItemDelete:hover {
+  background: #374151;
+}
+
+.messageBubbleBase {
+  color: #fff;
+  padding: 10px 14px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+  word-break: break-word;
+  font-size: 15px;
+  line-height: 1.4;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  max-width: 100%;
+  position: relative; /* Crucial for absolute inner positioning */
+  padding-right: 28px; /* Adds breathing room so text doesn't flow under the chevron */
+}
+
+.messageActionTrigger {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+}
+
+.optionsButton {
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  color: #cbd5e1;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+
+.optionsButton:hover {
+  background: rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+}
+
+.dropdownMenu {
+  position: absolute;
+  right: 0;
+  top: 24px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  overflow: hidden;
+  min-width: 100px;
+}
+
+.dropdownItemDelete {
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: #f87171;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.dropdownItemDelete:hover {
+  background: #374151;
+}
+.messageBubbleBase {
+  color: #fff;
+  padding: 8px 12px;
+  /* Give breathing room so text doesn't flow under the top chevron or bottom timestamp */
+  padding-right: 32px; 
+  padding-bottom: 20px; 
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+  word-break: break-word;
+  font-size: 15px;
+  line-height: 1.4;
+  position: relative; /* Crucial for absolute positioning inside the bubble */
+  display: inline-block;
+}
+
+.messageBubbleMe {
+  background: #2563eb;
+  border-radius: 8px 8px 2px 8px;
+}
+
+.messageBubbleOther {
+  background: #1e293b;
+  border-radius: 8px 8px 8px 2px;
+}
+
+.messageText {
+  display: inline;
+}
+
+/* Locked to the bottom-right corner */
+.messageTimestampMe {
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  font-size: 10px;
+  color: #bfdbfe;
+  user-select: none;
+}
+
+.messageTimestampOther {
+  position: absolute;
+  bottom: 4px;
+  right: 8px;
+  font-size: 10px;
+  color: #94a3b8;
+  user-select: none;
+}
+
+/* Locked to the top-right corner */
+.messageActionTrigger {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+}
+
+.optionsButton {
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  color: #cbd5e1;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+
+.optionsButton:hover {
+  background: rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+}
+
+.dropdownMenu {
+  position: absolute;
+  right: 0;
+  top: 24px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  overflow: hidden;
+  min-width: 100px;
+}
+
+.dropdownItemDelete {
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: #f87171;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.dropdownItemDelete:hover {
+  background: #374151;
+}
+
+
+.messageBubbleBase {
+  color: #fff;
+  padding: 8px 12px;
+  /* Extra bottom padding to let the inline timestamp fit nicely */
+  padding-bottom: 6px; 
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+  word-break: break-word;
+  font-size: 15px;
+  line-height: 1.4;
+  position: relative; /* Essential for absolute positioning of the hover chevron */
+  display: inline-block;
+  max-width: 100%;
+}
+
+.messageBubbleMe {
+  background: #2563eb;
+  border-radius: 8px 8px 2px 8px;
+}
+
+.messageBubbleOther {
+  background: #1e293b;
+  border-radius: 8px 8px 8px 2px;
+}
+
+/* Grouping text and timestamp so the timestamp aligns neatly on the bottom right */
+.messageText {
+  display: inline;
+  margin-right: 48px; /* Leaves breathing room so text doesn't flow directly into the inline timestamp */
+}
+
+.messageTimestampMe {
+  display: inline-block;
+  font-size: 10px;
+  color: #bfdbfe;
+  margin-left: 6px;
+  vertical-align: bottom;
+  user-select: none;
+}
+
+.messageTimestampOther {
+  display: inline-block;
+  font-size: 10px;
+  color: #94a3b8;
+  margin-left: 6px;
+  vertical-align: bottom;
+  user-select: none;
+}
+
+/* Transparent chevron button that fades in on hover in the top right corner */
+.messageActionTrigger {
+  position: absolute;
+  top: 2px;
+  right: 6px;
+  opacity: 0; /* Hidden by default */
+  transition: opacity 0.2s ease-in-out; /* Smooth fade-in effect */
+}
+
+/* Make the chevron appear when hovering over the parent message wrapper/bubble */
+.messageWrapper:hover .messageActionTrigger,
+.messageBubbleBase:hover .messageActionTrigger {
+  opacity: 1; 
+}
+/* Keeps the chevron visible if the menu is open */
+.messageActionTrigger.forceVisible {
+  opacity: 1 !important;
+}
+.optionsButton {
+  background: transparent !important; /* Transparent background */
+  border: none;
+  color: #ffffff; /* Pure white icon */
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.optionsButton:hover {
+  background: rgba(255, 255, 255, 0.15); /* Subtle highlight when hovering the chevron itself */
+}
+
+.dropdownMenu {
+  position: absolute;
+  right: 0;
+  top: 28px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  overflow: hidden;
+  min-width: 100px;
+  scale: 1.25;
+}
+
+.dropdownItemDelete {
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: #f87171;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.dropdownItemDelete:hover {
+  background: #374151;
+}
+/* Fixed chevron stretching by resetting line-height and padding */
+.optionsButton {
+  background: transparent !important;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1; /* Fixes vertical text stretching */
+  padding: 0;     /* Prevents layout distortion */
+}
+
+.optionsButton:hover {
+  background: transparent !important;
+  color: #93c5fd;
+}
+/* Hide user profile details on mobile screens */
+@media (max-width: 768px) {
+  .headerLeft { /* Replace '.userProfile' with whatever class name your user details container uses */
+    display: none !important;
+  }
+}
+/* 🌟 Mobile Responsive Layout adjustments */
+
+@media (max-width: 768px) {
+  /* Target your sidebar container class */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -100%; /* Hidden off-screen by default */
+    width: 100% !important; /* Full width across the whole screen */
+    height: 100dvh;
+    background-color: #0f172a; /* Match your app background */
+    z-index: 1000;
+    transition: left 0.3s ease-in-out;
+    padding-top: 60px; /* Space for a close button if needed */
+  }
+
+  /* When toggled open, slide it in to cover the screen */
+  .sidebarOpen {
+    left: 0; 
+  }
+}
+
+/* 🌟 Hide the Bootstrap hamburger SVG on desktop/laptop */
+.hamburgerButton {
+  display: none;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: 10px;
+  padding: 4px;
+  z-index: 1001;
+}
+
+/* Show ONLY on mobile screens */
+@media (max-width: 768px) {
+  .hamburgerButton {
+    display: flex !important;
+    border-radius: 10px;
+    align-items: center;
+    justify-content: center;
+  }
+}
+/* 🌟 Mobile Responsive Sidebar & Backdrop Styles */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: 260px !important; /* Fixed width drawer instead of covering full screen */
+    height: 100dvh;
+    background-color: #111827 !important;
+    z-index: 1000;
+    transform: translateX(-100%); /* Hidden completely off-screen to the left */
+    transition: transform 0.3s ease-in-out; /* Smooth sliding transition */
+    box-shadow: 5px 0 25px rgba(0, 0, 0, 0.5);
+  }
+
+  .sidebarOpen {
+    transform: translateX(0) !important; /* Slides into view smoothly */
+  }
+}
+
+/* Backdrop Overlay */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  z-index: 999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.backdropVisible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Show ONLY on mobile screens */
+@media (max-width: 768px) {
+  .messageBubbleBase{
+    scale: 0.85;
+  }
+  .messageAvatar{
+    scale: 0.85;
+  }
+  .messageBubbleOther{
+    margin-left: -15px;
+    margin-top: -20px;
+  }
+}
+.messageSenderName{
+  text-align: left;
+}
+
+.chatInput {
+  flex: 1;
+  padding: 10px 20px;
+  border-radius: 15px;
+  border: 1px solid #374151;
+  font-size: 13px;
+  outline: none;
+  background: #1f2937;
+  color: #fff;
+}
+
+.sendBtn {
+  display: flex;
+  gap: 8px;
+  padding: 10px 25px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 15px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+  box-shadow: 0 4px 12px rgba(37,99,235,0.2);
+  align-items: center;
+  justify-content: center;
+}
+
+@media(max-width: 768px){
+  .chatInput{
+      padding: 5px 12px;
+      border-radius: 10px;
+  }
+  .sendBtn{
+      padding: 5px 15px;
+      border-radius: 10px;
+  }
+  .btnText{
+    display: none;
+  }
+  .modalCard{
+    scale: 0.75;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    /* Prevents the default browser action for edge-swiping page navigation */
+    touch-action: pan-y; 
+  }
+}
+.scrollToBottomBtn {
+  position: absolute;
+  bottom: 80px; /* Sits perfectly right above your chat input form */
+  right: 20px;
+  background: #2563eb; /* Matches your premium blue send button theme */
+  color: #ffffff;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%; /* Makes it a perfect clean circle */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), 0 0 0 0.5px rgba(255, 255, 255, 0.1);
+  z-index: 40;
+  transition: transform 0.2s, background-color 0.2s;
+  animation: popIn 0.2s ease-out;
+}
+
+.scrollToBottomBtn:hover {
+  background: #1d4ed8; /* Darker blue transition state */
+  transform: translateY(-2px); /* Subtle hover lift effect */
+}
+
+@keyframes popIn {
+  from {
+    transform: scale(0.8) translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+@media(max-width:768px){
+  .scrollToBottomBtn{
+    width: 30px;
+    height: 30px;
+  }
+}
+
+
+
+.removePreviewBtn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+/* Style to display images within the message feed */
+.chatImage {
+  max-width: 280px;
+  max-height: 200px;
+  border-radius: 8px;
+  margin-top: 8px;
+  display: block;
+  cursor: pointer;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+/* Enhanced, highly visible image preview module template overlay */
+
+.removePreviewBtn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: bold;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s;
+}
+
+.removePreviewBtn:hover {
+  transform: scale(1.1);
+}
+
+/* Micro loader keyframe rotation loops */
+.inlineSpinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #ffffff;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(15px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.inlineSpinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #ffffff; /* Creates the solid highlight edge line */
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+/* The full screen viewport shroud layout */
+
+/* Clear, highly visible floating close button element */
+.removePreviewBtn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: bold;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  z-index: 101;
+}
+
+.removePreviewBtn:disabled {
+  background: #4b5563;
+  cursor: not-allowed;
+}
+/* ==========================================================================
+   🌟 FIX: Use Fixed Viewport Coordinates to Shield the Message View Perfectly
+   ========================================================================== */
+
+/* Make sure the main layout wrapper allows children to display relative overlays */
+.chatWindow {
+  position: relative !important;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   📱 Mobile View Responsiveness Control Overrides
+   ========================================================================== */
+@media (max-width: 768px) {
+  .previewContainer {
+    left: 0;      /* When the sidebar hides on mobile, preview uses 100% width screen */
+    top: 60px;    /* Adjusts for the smaller mobile top app nav header line */
+    bottom: 56px; /* Snaps cleanly right down to the mobile touch input edge line */
+    padding: 16px;
+  }
+}
+/* 🌟 Upgraded: Sits inside the natural flow of the message feed box layout */
+/* 🌟 FIX: Ensures the loader fills out the full workspace container space */
+.roomLoaderContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 400px; /* Forces dynamic expansion on empty rooms */
+  flex-grow: 1;
+}
+
+/* 🌟 FIX: Forces the preview mask area to span 100% width and height of the layout zone */
+.previewContainer {
+  width: 100%;
+  height: 100%;
+  flex-grow: 1; /* Automatically consumes all available height in the grid system */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative; 
+  padding: 30px;
+  box-sizing: border-box;
+  background: #0d111a; /* Clean solid theme color blocking historical messages out */
+  border-radius: 12px;
+}
+
+/* Keeps any image (large or tiny) centered perfectly within the full viewport limits */
+.previewImage {
+  max-width: 100%;
+  max-height: 65vh; 
+  object-fit: contain; 
+  border-radius: 8px;
+}
+
+/* Clean, floating premium dismiss anchor circle */
+.removePreviewBtn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: bold;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  z-index: 10;
+}
+/* ==========================================================================
+   🛠️ FIXED STYLES BLOCK: STOPS ANTI-COLLAPSE AND SHIFTING WIDTH GLITCHES
+   ========================================================================== */
+
+/* 1. Force the main chat container to occupy 100% width space layout */
+.chatWindow {
+  display: grid;
+  grid-template-rows: 1fr auto; /* Feed takes top space, input locks to bottom */
+  height: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
+  position: relative !important;
+  overflow: hidden;
+}
+
+/* 2. Lock the room loader spinner container across full width constraints */
+.roomLoaderContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100% !important;
+  height: 100% !important;
+  flex-grow: 1;
+}
+
+/* 3. Lock the image preview shroud container to full message workspace bounds */
+.previewContainer {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 24px;
+  background: #0d111a; /* Solid dark color completely masks historical messages */
+  border-radius: 12px;
+}
+
+/* 4. Keep any image centered inside the full grid area bounds safely */
+.previewImage {
+  max-width: 100%;
+  max-height: 62vh;
+  object-fit: contain;
+}
+/* Inline Message Editing UI Styles */
+.dropdownItemEdit {
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: #e2e8f0;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  border-bottom: 1px solid #374151; /* Clean internal separator */
+}
+
+.dropdownItemEdit:hover {
+  background: #374151;
+  color: #fff;
+}
+
+.editFormInline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 200px;
+}
+
+.editInputInline {
+  background: #1f2937;
+  color: #fff;
+  border: 1px solid #3b82f6;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 14px;
+  outline: none;
+  width: 100%;
+}
+
+.editActionsInline {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.editSaveBtn {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.editCancelBtn {
+  background: #4b5563;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.editedIndicatorTag {
+  color: #94a3b8;
+  font-size: 10px;
+  font-style: italic;
+  margin-left: 4px;
+  user-select: none;
+}
+/* ==========================================================================
+   ✨ POLISHED INLINE MESSAGE EDITING LAYOUT ADJUSTMENTS
+   ========================================================================== */
+
+/* 1. Prevent your layout from being restricted by text inline blocks */
+.editFormInline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-width: 220px; /* Gives plenty of typing space across laptop viewports */
+  padding: 4px 0;
+  box-sizing: border-box;
+}
+
+/* 2. Premium, high-fidelity dark inline text field input panel styling */
+.editInputInline {
+  background: #0f172a !important; /* Deep contrast dark field matching theme rules */
+  color: #ffffff !important;
+  border: 1px solid #3b82f6 !important; /* Premium active accent blue border line */
+  border-radius: 8px !important;
+  padding: 8px 12px !important;
+  font-size: 14px !important;
+  outline: none !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* 3. Action row setup block grid */
+.editActionsInline {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+  margin-top: 2px;
+  /* 🌟 CRUCIAL: Pushes actions away from absolute floating timestamp layers */
+  padding-bottom: 12px; 
+}
+
+/* Clean, actionable visual confirmation button tags */
+.editSaveBtn {
+  background: #10b981 !important; /* Emerald green save theme context badge */
+  color: white !important;
+  border: none !important;
+  padding: 6px 14px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  cursor: pointer !important;
+  font-weight: 600 !important;
+  transition: opacity 0.2s;
+}
+
+.editSaveBtn:hover {
+  opacity: 0.9;
+}
+
+/* Clean cancel action buttons layout controls */
+.editCancelBtn {
+  background: #4b5563 !important; /* Muted gray boundary anchor color */
+  color: white !important;
+  border: none !important;
+  padding: 6px 14px !important;
+  border-radius: 6px !important;
+  font-size: 12px !important;
+  cursor: pointer !important;
+  font-weight: 500 !important;
+  transition: background-color 0.2s;
+}
+
+.editCancelBtn:hover {
+  background: #374151 !important;
+}
+
+/* Inline indicator tag tweaks */
+.editedIndicatorTag {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 10px;
+  font-style: italic;
+  margin-left: 6px;
+  user-select: none;
+}
+.searchBarWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  max-width: 300px;
+  width: 100%;
+  margin: 0 15px;
+  gap: 2px;
+  border: 1px solid #374151;
+  padding: 0px;
+  border-radius: 5px;
+  padding-left: 9px;
+  flex-direction: row;
+}
+
+.headerSearchInput {
+  width: 100%;
+  background: #1f2937;
+  color: #fff;
+  border: 1px solid #374151;
+  border-top-left-radius: 0px;
+  border-bottom-left-radius: 0px;
+  border-bottom-right-radius: 5px;
+  border-top-right-radius: 5px;
+  padding: 8px 16px;
+  font-size: 14px;
+  outline: none;
+}
+
+.headerSearchInput:focus {
+  border-color: #2563eb;
+}
+
+.clearSearchBtn {
+  position: absolute;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  font-size: 16px;
+  cursor: pointer;
+}
+@media (max-width: 768px) {
+  .searchBarWrapper { display: none; } /* Clear clutter on tiny screens */
+}
+/* Real-Time Search Match Text Highlight Styles */
+.searchTextHighlight {
+  background-color: yellow !important; /* Premium amber/gold accent block color */
+  color: #0f172a !important;            /* High-contrast deep navy text for readability */
+  padding: 0 1px;
+  border-radius: 4px;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  opacity: 0.7;
+}
+.searchSvg{
+  width: 25px;
+  height: 25px;
+  margin-right: 7px;
+  cursor: pointer;
+}

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { createUserWithEmailAndPassword, onAuthStateChanged, sendEmailVerification, signOut } from 'firebase/auth';
-import styles from '../App.module.css';
+import styles from '../styles/App.module.scss';
 import { auth } from '../firebase';
+import MyIcon from '../assets/google.svg';
 
 const firebaseErrorMessages = {
   'auth/email-already-in-use': 'An account already exists with this email. Try signing in instead.',
@@ -132,6 +133,7 @@ export default function LoginCard({ onLogin, onEmailLogin, onRefreshUser, onUpda
         <h1 className={styles.title}>Public Chat</h1>
         <p className={styles.subtitle}>Sign in securely with Firebase</p>
         <button type="button" onClick={onLogin} className={styles.googleBtn}>
+          <img src={MyIcon} alt="My Icon" width="25" height="25" />
           Continue with Google
         </button>
         <button type="button" onClick={onPreview} className={styles.previewBtn}>

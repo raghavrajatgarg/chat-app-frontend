@@ -1,4 +1,4 @@
-import styles from '../App.module.css';
+import styles from '../styles/App.module.scss';
 
 export default function DeleteModal({ isDeleting, onCancel, onDelete }) {
   return (

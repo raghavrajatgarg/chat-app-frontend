@@ -1,6 +1,6 @@
 // src/components/EditMessageModal.jsx
 import { useState, useEffect } from 'react';
-import styles from '../App.module.css';
+import styles from '../styles/App.module.scss';
 
 export default function EditMessageModal({ isOpen, initialText, onSave, onClose }) {
   const [text, setText] = useState(initialText || '');

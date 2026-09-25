@@ -1,0 +1,49 @@
+/* ==========================================================================
+   🌟 APP MODULE CSS - MODERN LUXURY & PERFORMANCE OPTIMIZED
+   ========================================================================== */
+
+:root {
+  --bg-app: #06080f;
+  /* Slightly higher opacity solid glass fallback to eliminate multi-pass lag */
+  --bg-card: rgba(13, 17, 26, 0.92);
+  --bg-card-hover: rgba(26, 32, 44, 0.95);
+  --bg-input: rgba(15, 23, 42, 0.85);
+  --bg-deep: #05070c;
+  --border-color: rgba(255, 255, 255, 0.07);
+  --border-input: rgba(255, 255, 255, 0.12);
+  --accent-blue: #3b82f6;
+  --accent-blue-hover: #2563eb;
+  --accent-emerald: #10b981;
+  --accent-red: #ef4444;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --text-subtle: #64748b;
+  --font-stack: "Open Sans", sans-serif;
+
+  /* Reduced blur radius from 16px to 10px for instant GPU rendering */
+  --glass-blur: blur(10px);
+}
+
+/* Global Interactive Resets & Smooth Font Polish */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+a,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Fix mobile viewport shifting after input blur configurations */
+html,
+body {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100.01% !important;
+  /* Forces layout calculations to settle back to base bounds */
+}
+

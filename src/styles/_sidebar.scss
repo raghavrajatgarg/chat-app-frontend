@@ -1,0 +1,129 @@
+/* ==========================================================================
+   5. Sidebar & Drawer (Optimized: No redundant blur)
+   ========================================================================== */
+
+.sidebar {
+  width: 380px;
+  background: rgba(13, 17, 26, 0.96);
+  /* Solid glass fallback */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-right: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  padding: 15px;
+  box-sizing: border-box;
+  height: 100%;
+  overflow: hidden;
+  z-index: 10000000000000000;
+}
+
+.sidebarSection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.sidebarDivider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 15px 0;
+}
+
+.sidebarTitle {
+  margin: 0 0 10px 0;
+  color: var(--text-subtle);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.userList {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 4px;
+}
+
+.roomList {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 4px;
+}
+
+.userItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.userItem:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.userAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.userName {
+  font-size: 14px;
+  color: var(--text-main);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  background: var(--accent-emerald);
+  border-radius: 50%;
+  margin-left: auto;
+  box-shadow: 0 0 8px var(--accent-emerald);
+}
+
+.roomBtn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  gap: 5px;
+}
+
+.roomBtn:hover {
+  background: var(--bg-card-hover);
+  color: #fff;
+}
+
+.roomBtnActive {
+  background: var(--accent-blue);
+  color: #fff;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.roomBtnActive:hover {
+  background: var(--accent-blue-hover);
+}
+
