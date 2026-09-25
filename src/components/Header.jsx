@@ -1,15 +1,13 @@
 import { useState } from 'react';
 import styles from '../App.module.css';
 
-export default function Header({
-  user, 
-  searchQuery, 
-  setSearchQuery, 
-  searchInputRef, 
-  handleSvgClick, 
-  onToggleMobileMenu, 
+function Header({
+  searchQuery,
+  setSearchQuery,
+  searchInputRef,
+  handleSvgClick,
+  onToggleMobileMenu,
   onOpenSettings,
-  room,
   isPrivateRoom,
   headerTitle,
   headerAvatar,
@@ -18,48 +16,47 @@ export default function Header({
   formatLastSeen,
   startCall
 }) {
-  const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState(false);
   const [isFullScreenSearchOpen, setIsFullScreenSearchOpen] = useState(false);
   return (
     <>
       <header className={styles.header}>
-        <button 
-          className={styles.hamburgerButton} 
+        <button
+          className={styles.hamburgerButton}
           onClick={onToggleMobileMenu}
           aria-label="Toggle navigation menu"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-            <path fillRule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"/>
-          </svg>  
+            <path fillRule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5" />
+          </svg>
         </button>
         <div className={styles.headerUserInfoContainer}>
-          {isPrivateRoom &&(
-            <img 
-              src={headerAvatar} 
-              alt={`${headerTitle}'s avatar`} 
-              className={styles.userAvatar} 
+          {isPrivateRoom && (
+            <img
+              src={headerAvatar}
+              alt={`${headerTitle}'s avatar`}
+              className={styles.userAvatar}
             />
           )}
-        <div className={styles.headerUserInfo}>
-          <span className={styles.headerUserName}>{headerTitle}</span>
-          
-          {/* Dynamic Status: Shows "Online" or the exact "Last seen..." timestamp */}
-          {isPrivateRoom &&(
-            <span className={`${styles.lastSeenHeader} ${isHeaderUserOnline ? styles.liveIndicator : ''}`}>
-              {isHeaderUserOnline 
-                ? 'Online' 
-                : formatLastSeen(activeHeaderUser?.lastSeen)}
-            </span>
-          )}
-        </div>
+          <div className={styles.headerUserInfo}>
+            <span className={styles.headerUserName}>{headerTitle}</span>
+
+            {/* Dynamic Status: Shows "Online" or the exact "Last seen..." timestamp */}
+            {isPrivateRoom && (
+              <span className={`${styles.lastSeenHeader} ${isHeaderUserOnline ? styles.liveIndicator : ''}`}>
+                {isHeaderUserOnline
+                  ? 'Online'
+                  : formatLastSeen(activeHeaderUser?.lastSeen)}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Desktop Search Bar */}
         <div className={styles.searchBarWrapper}>
           <svg onClick={handleSvgClick} xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className={styles.searchSvg} viewBox="0 0 16 16">
-            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
           </svg>
-          <input 
+          <input
             ref={searchInputRef}
             type="text"
             value={searchQuery}
@@ -67,82 +64,82 @@ export default function Header({
             placeholder="Search messages in channel..."
             className={styles.headerSearchInput}
           />
-{searchQuery && (
-  <button 
-    onClick={(e) => {
-      e.preventDefault(); // 🌟 Stops the browser from recalculating focus boundaries mid-click
-      setSearchQuery('');
-      
-      // Explicitly pull focus out of the input field
-      if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
-      }
-      
-      // Safely bounce the viewport baseline back to absolute zero
-      setTimeout(() => {
-        window.scrollTo(0, 0);
-        document.body.scrollTop = 0;
-      }, 50);
-    }} 
-    className={styles.clearSearchBtn}
-  >
-    ×
-  </button>
-)}
+          {searchQuery && (
+            <button
+              onClick={(e) => {
+                e.preventDefault(); // 🌟 Stops the browser from recalculating focus boundaries mid-click
+                setSearchQuery('');
+
+                // Explicitly pull focus out of the input field
+                if (document.activeElement instanceof HTMLElement) {
+                  document.activeElement.blur();
+                }
+
+                // Safely bounce the viewport baseline back to absolute zero
+                setTimeout(() => {
+                  window.scrollTo(0, 0);
+                  document.body.scrollTop = 0;
+                }, 50);
+              }}
+              className={styles.clearSearchBtn}
+            >
+              ×
+            </button>
+          )}
         </div>
 
         {/* Right side: Mobile 3-dot menu & Gear Icon */}
         <div className={styles.headerRightControls}>
           {isPrivateRoom && activeHeaderUser && (
-          <button 
-            className={styles.callIconButton} 
-            onClick={() => startCall(activeHeaderUser)}
-            title={`Call ${activeHeaderUser.name}`}
-            aria-label="Start Call"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-              <path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.568 17.568 0 0 0 4.168 6.608 17.569 17.569 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.678.678 0 0 0-.58-.122l-2.19.547a1.745 1.745 0 0 1-1.657-.959L5.451 8.275a1.745 1.745 0 0 1-.959-1.657l.547-2.19a.678.678 0 0 0-.122-.58L3.654 1.328z"/>
+            <button
+              className={styles.callIconButton}
+              onClick={() => startCall(activeHeaderUser)}
+              title={`Call ${activeHeaderUser.name}`}
+              aria-label="Start Call"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.568 17.568 0 0 0 4.168 6.608 17.569 17.569 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.678.678 0 0 0-.58-.122l-2.19.547a1.745 1.745 0 0 1-1.657-.959L5.451 8.275a1.745 1.745 0 0 1-.959-1.657l.547-2.19a.678.678 0 0 0-.122-.58L3.654 1.328z" />
+              </svg>
+            </button>
+          )}
+          <div className={styles.mobileMenuContainer}>
+            <button
+              className={styles.threeDotBtn}
+              popoverTarget="mobile-header-popover"
+              aria-label="More options"
+            >
+              <svg xmlns="http://w3.org" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z" />
+              </svg>
+            </button>
+
+            <div
+              id="mobile-header-popover"
+              popover="auto"
+              className={styles.headerDropdown}
+            >
+              <button
+                className={styles.dropdownSearchBtn}
+                onClick={() => {
+                  // Native popovers require manual dismissal when triggering another UI state
+                  document.getElementById("mobile-header-popover")?.hidePopover();
+                  setIsFullScreenSearchOpen(true);
+                }}
+              >
+                <svg xmlns="http://w3.org" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
+                </svg>
+                Search
+              </button>
+            </div>
+          </div>
+
+          <button onClick={onOpenSettings} className={styles.gearBtn} aria-label="User Settings">
+            <svg xmlns="http://w3.org" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.988 1.988l.17.31c.452.83.223 1.875-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.988 1.988l.31-.17a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.988-1.988l-.17-.31a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.988-1.988l-.31.17a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.93 2.93 0 1 1 0-5.86 2.93 2.93 0 0 1 0 5.86z" />
             </svg>
           </button>
-        )}
-  <div className={styles.mobileMenuContainer}>
-    <button 
-      className={styles.threeDotBtn}
-      popoverTarget="mobile-header-popover"
-      aria-label="More options"
-    >
-      <svg xmlns="http://w3.org" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
-        <path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>
-      </svg>
-    </button>
-
-    <div 
-      id="mobile-header-popover" 
-      popover="auto" 
-      className={styles.headerDropdown}
-    >
-      <button 
-        className={styles.dropdownSearchBtn}
-        onClick={(e) => {
-          // Native popovers require manual dismissal when triggering another UI state
-          document.getElementById("mobile-header-popover")?.hidePopover();
-          setIsFullScreenSearchOpen(true);
-        }}
-      >
-        <svg xmlns="http://w3.org" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
-        </svg>
-        Search
-      </button>
-    </div>
-  </div>
-
-  <button onClick={onOpenSettings} className={styles.gearBtn} aria-label="User Settings">
-    <svg xmlns="http://w3.org" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
-      <path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.988 1.988l.17.31c.452.83.223 1.875-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.988 1.988l.31-.17a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.988-1.988l-.17-.31a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.988-1.988l-.31.17a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.93 2.93 0 1 1 0-5.86 2.93 2.93 0 0 1 0 5.86z"/>
-    </svg>
-  </button>
-</div>
+        </div>
       </header>
 
       {/* Full-Screen Search Overlay for Mobile */}
@@ -151,9 +148,9 @@ export default function Header({
           <div className={styles.fullScreenSearchHeader}>
             <div className={styles.searchBarWrapper} style={{ maxWidth: '100%', margin: 0, display: 'flex' }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className={styles.searchSvg} viewBox="0 0 16 16">
-                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
               </svg>
-              <input 
+              <input
                 autoFocus
                 type="text"
                 value={searchQuery}
@@ -161,30 +158,30 @@ export default function Header({
                 placeholder="Search messages in channel..."
                 className={styles.headerSearchInput}
               />
-{searchQuery && (
-  <button 
-    onClick={(e) => {
-      e.preventDefault(); // 🌟 Stops the browser from recalculating focus boundaries mid-click
-      setSearchQuery('');
-      
-      // Explicitly pull focus out of the input field
-      if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
-      }
-      
-      // Safely bounce the viewport baseline back to absolute zero
-      setTimeout(() => {
-        window.scrollTo(0, 0);
-        document.body.scrollTop = 0;
-      }, 50);
-    }} 
-    className={styles.clearSearchBtn}
-  >
-    ×
-  </button>
-)}
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    e.preventDefault(); // 🌟 Stops the browser from recalculating focus boundaries mid-click
+                    setSearchQuery('');
+
+                    // Explicitly pull focus out of the input field
+                    if (document.activeElement instanceof HTMLElement) {
+                      document.activeElement.blur();
+                    }
+
+                    // Safely bounce the viewport baseline back to absolute zero
+                    setTimeout(() => {
+                      window.scrollTo(0, 0);
+                      document.body.scrollTop = 0;
+                    }, 50);
+                  }}
+                  className={styles.clearSearchBtn}
+                >
+                  ×
+                </button>
+              )}
             </div>
-            <button 
+            <button
               className={styles.fullScreenSearchCloseBtn}
               onClick={() => setIsFullScreenSearchOpen(false)}
             >
@@ -196,3 +193,6 @@ export default function Header({
     </>
   );
 }
+
+export { Header };
+export default Header;

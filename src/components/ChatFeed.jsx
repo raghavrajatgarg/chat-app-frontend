@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useLayoutEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import styles from '../App.module.css';
 
 // Waveform / Audio Player component for voice notes
@@ -67,11 +67,11 @@ function VoiceMessagePlayer({ audioSrc }) {
       <button type="button" onClick={togglePlay} className={styles.voicePlayBtn} aria-label={isPlaying ? "Pause" : "Play"}>
         {isPlaying ? (
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-            <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5"/>
+            <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5" />
           </svg>
         ) : (
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-            <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.693-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393"/>
+            <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.693-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393" />
           </svg>
         )}
       </button>
@@ -101,11 +101,8 @@ export default function ChatFeed({
   selectedImage,
   isSendingImage,
   setSelectedImage,
-  editingMessageId,
   setEditingMessageId,
-  editingText,
   setEditingText,
-  handleEditMessage,
   openMenuId,
   setOpenMenuId,
   setDeleteModalMessageId,
@@ -117,92 +114,92 @@ export default function ChatFeed({
   setActiveLightboxImage,
   hasMorePages
 }) {
-// Overwrite the top scrolling useEffect block layers inside ChatFeed.jsx to this structure:
-const scrollContainerRef = useRef(null);
-const [isFetchingMore, setIsFetchingMore] = useState(false);
-const lastMessageIdRef = useRef(null); // Retain your specific pagination reference hook
-const isInitialRoomLoadRef = useRef(true);
+  // Overwrite the top scrolling useEffect block layers inside ChatFeed.jsx to this structure:
+  const scrollContainerRef = useRef(null);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const lastMessageIdRef = useRef(null); // Retain your specific pagination reference hook
+  const isInitialRoomLoadRef = useRef(true);
 
-// High-precision memory reference pins to manage scroll heights during history compilation pagination
-const previousScrollHeightRef = useRef(0);
-const previousScrollTopRef = useRef(0);
-const isPaginatingRef = useRef(false);
+  // High-precision memory reference pins to manage scroll heights during history compilation pagination
+  const previousScrollHeightRef = useRef(0);
+  const previousScrollTopRef = useRef(0);
+  const isPaginatingRef = useRef(false);
 
-const performScrollSnap = (scrollingBehavior = 'auto') => {
-  requestAnimationFrame(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo({
-        top: scrollContainerRef.current.scrollHeight,
-        behavior: scrollingBehavior
-      });
-    }
-  });
-};
+  const performScrollSnap = (scrollingBehavior = 'auto') => {
+    requestAnimationFrame(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTo({
+          top: scrollContainerRef.current.scrollHeight,
+          behavior: scrollingBehavior
+        });
+      }
+    });
+  };
 
-// 1. MONITOR ROOM SELECTION SHIFTS: Wipe parameters to prevent layout pollution
-useEffect(() => {
-  isInitialRoomLoadRef.current = true;
-  lastMessageIdRef.current = null; //
-  isPaginatingRef.current = false;
-}, [room]); //
-
-// 2. CHAT FEED INITIAL ENTRY SNAP: Jump instantly to base bounds on mount
-useEffect(() => {
-  if (!roomLoading && messages.length > 0 && isInitialRoomLoadRef.current) { //
-    performScrollSnap('auto'); 
-    isInitialRoomLoadRef.current = false;
-  }
-}, [messages, roomLoading]); //
-
-// 3. INTEGRATED SCROLL POSITION ENGINE: Handles pagination stability and live messages safely
-useEffect(() => {
-  if (!messages || messages.length === 0 || isInitialRoomLoadRef.current) return;
-  const container = scrollContainerRef.current;
-  if (!container) return;
-
-  // SCENARIO A: PAGINATION COMPLETION ANCHORING DETECTED
-  if (isPaginatingRef.current) {
-    // Calculate how many total vertical pixels were added to the top of the chat area
-    const heightDelta = container.scrollHeight - previousScrollHeightRef.current;
-    
-    // Smoothly restore the viewport position so you do NOT jump or teleport down!
-    container.scrollTop = previousScrollTopRef.current + heightDelta;
-    
-    // Release lock variables for subsequent operations
+  // 1. MONITOR ROOM SELECTION SHIFTS: Wipe parameters to prevent layout pollution
+  useEffect(() => {
+    isInitialRoomLoadRef.current = true;
+    lastMessageIdRef.current = null; //
     isPaginatingRef.current = false;
-    return;
-  }
+  }, [room]); //
 
-  // SCENARIO B: LIVE CHAT TRAFFIC MONITORING DETECTED
-  const finalMessageNode = messages[messages.length - 1];
-  const iAmTheSender = finalMessageNode?.senderUid === user.uid; //
-  
-  const userIsNearBottomBounds = (container.scrollHeight - container.scrollTop - container.clientHeight) < 380;
+  // 2. CHAT FEED INITIAL ENTRY SNAP: Jump instantly to base bounds on mount
+  useEffect(() => {
+    if (!roomLoading && messages.length > 0 && isInitialRoomLoadRef.current) { //
+      performScrollSnap('auto');
+      isInitialRoomLoadRef.current = false;
+    }
+  }, [messages, roomLoading]); //
 
-  if (iAmTheSender || userIsNearBottomBounds) {
-    performScrollSnap('smooth'); 
-  }
-}, [messages.length, user.uid]); // Explicitly dependency tracking on array lengths to ignore active typing variables!
+  // 3. INTEGRATED SCROLL POSITION ENGINE: Handles pagination stability and live messages safely
+  useEffect(() => {
+    if (!messages || messages.length === 0 || isInitialRoomLoadRef.current) return;
+    const container = scrollContainerRef.current;
+    if (!container) return;
 
-// 4. INTERCEPT BEFORE LOADMORE ACTIONS: Capture height metrics before the API populates newer arrays
-const handleTriggerHistoryFetch = async () => {
-  const container = scrollContainerRef.current;
-  if (container && !isFetchingMore && hasMorePages) { //
-    // Pin active coordinate matrix snapshots into memory reference pointers before state arrays shift
-    previousScrollHeightRef.current = container.scrollHeight;
-    previousScrollTopRef.current = container.scrollTop;
-    isPaginatingRef.current = true; // Set lock to alert our effect processing layer
+    // SCENARIO A: PAGINATION COMPLETION ANCHORING DETECTED
+    if (isPaginatingRef.current) {
+      // Calculate how many total vertical pixels were added to the top of the chat area
+      const heightDelta = container.scrollHeight - previousScrollHeightRef.current;
 
-    await loadMoreMessages(); // Trigger your parent history database API query loop
-  }
-};
+      // Smoothly restore the viewport position so you do NOT jump or teleport down!
+      container.scrollTop = previousScrollTopRef.current + heightDelta;
+
+      // Release lock variables for subsequent operations
+      isPaginatingRef.current = false;
+      return;
+    }
+
+    // SCENARIO B: LIVE CHAT TRAFFIC MONITORING DETECTED
+    const finalMessageNode = messages[messages.length - 1];
+    const iAmTheSender = finalMessageNode?.senderUid === user.uid; //
+
+    const userIsNearBottomBounds = (container.scrollHeight - container.scrollTop - container.clientHeight) < 380;
+
+    if (iAmTheSender || userIsNearBottomBounds) {
+      performScrollSnap('smooth');
+    }
+  }, [messages, user.uid]);
+
+  // 4. INTERCEPT BEFORE LOADMORE ACTIONS: Capture height metrics before the API populates newer arrays
+  const handleTriggerHistoryFetch = async () => {
+    const container = scrollContainerRef.current;
+    if (container && !isFetchingMore && hasMorePages) { //
+      // Pin active coordinate matrix snapshots into memory reference pointers before state arrays shift
+      previousScrollHeightRef.current = container.scrollHeight;
+      previousScrollTopRef.current = container.scrollTop;
+      isPaginatingRef.current = true; // Set lock to alert our effect processing layer
+
+      await loadMoreMessages(); // Trigger your parent history database API query loop
+    }
+  };
 
   // Helper to parse URL from text
-function extractUrl(text) {
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const matches = text.match(urlRegex);
-  return matches ? matches[0] : null;
-}
+  function extractUrl(text) {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const matches = text.match(urlRegex);
+    return matches ? matches[0] : null;
+  }
 
   useEffect(() => {
     lastMessageIdRef.current = null;
@@ -235,9 +232,9 @@ function extractUrl(text) {
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (!openMenuId) return;
-      const clickedInsideMenu = event.target.closest(`.${styles.dropdownMenu}`) || 
-                                event.target.closest(`.${styles.dropdownMenuFlipped}`) || 
-                                event.target.closest(`.${styles.messageActionTrigger}`);
+      const clickedInsideMenu = event.target.closest(`.${styles.dropdownMenu}`) ||
+        event.target.closest(`.${styles.dropdownMenuFlipped}`) ||
+        event.target.closest(`.${styles.messageActionTrigger}`);
       if (!clickedInsideMenu) {
         setOpenMenuId(null);
       }
@@ -251,7 +248,7 @@ function extractUrl(text) {
 
 
   return (
-    <div 
+    <div
       ref={scrollContainerRef}
       onScroll={handleScroll}
       className={styles.messageFeed}
@@ -265,9 +262,9 @@ function extractUrl(text) {
       ) : selectedImage ? (
         <div className={styles.previewContainer}>
           <img src={selectedImage} alt="Upload preview" className={styles.previewImage} />
-          <button 
-            type="button" 
-            onClick={() => !isSendingImage && setSelectedImage(null)} 
+          <button
+            type="button"
+            onClick={() => !isSendingImage && setSelectedImage(null)}
             className={styles.removePreviewBtn}
             disabled={isSendingImage}
           >
@@ -294,133 +291,133 @@ function extractUrl(text) {
               // Only flip upward if it's NOT in the first few messages AND it's near the bottom
               menuClass = styles.dropdownMenuFlipped;
             }
-          
+
             return (
-              <div 
+              <div
                 key={msgId || index}
                 data-message-id={msgId}
-                className={styles.messageRow} 
-                style={{ 
-                  justifyContent: isMe ? 'flex-end' : 'flex-start', 
-                  position: 'relative', 
-                  zIndex: isMenuOpen ? 100 : 1 
+                className={styles.messageRow}
+                style={{
+                  justifyContent: isMe ? 'flex-end' : 'flex-start',
+                  position: 'relative',
+                  zIndex: isMenuOpen ? 100 : 1
                 }}
               >
                 <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
                   {!isMe && <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />}
                   <div>
                     {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
-                    
-                    <div 
+
+                    <div
                       className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}
                       style={{ position: 'relative', paddingRight: msgId ? '28px' : '14px' }}
                     >
 
-                        <div className={styles.messageText}>
-                          {msg.image && (
-                            <img src={msg.image} alt="Sent asset" className={styles.chatImage} onClick={() => setActiveLightboxImage(msg.image)} />
-                          )}
-                          {(() => {
-  const url = extractUrl(msg.text);
-  return url ? (
-    <div className={styles.linkPreviewCard} onClick={() => window.open(url, '_blank')}>
-      <div className={styles.linkPreviewContent}>
-        <span className={styles.linkDomain}>{new URL(url).hostname}</span>
-        <p className={styles.linkTitle}>{url}</p>
-      </div>
-    </div>
-  ) : null;
-})()}
-                          {msg.audio && (
-                            <VoiceMessagePlayer audioSrc={msg.audio} />
-                          )}
-                          <div className={styles.messageFooterRow}>
-                            <span>
-                              {msg.text && msg.text !== "\u200B" && highlightText(msg.text, searchQuery)}
-                              {msg.edited && <small className={styles.editedIndicatorTag}> (edited)</small>}
-                            </span>
-                            <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
-                          </div>
+                      <div className={styles.messageText}>
+                        {msg.image && (
+                          <img src={msg.image} alt="Sent asset" className={styles.chatImage} onClick={() => setActiveLightboxImage(msg.image)} />
+                        )}
+                        {(() => {
+                          const url = extractUrl(msg.text);
+                          return url ? (
+                            <div className={styles.linkPreviewCard} onClick={() => window.open(url, '_blank')}>
+                              <div className={styles.linkPreviewContent}>
+                                <span className={styles.linkDomain}>{new URL(url).hostname}</span>
+                                <p className={styles.linkTitle}>{url}</p>
+                              </div>
+                            </div>
+                          ) : null;
+                        })()}
+                        {msg.audio && (
+                          <VoiceMessagePlayer audioSrc={msg.audio} />
+                        )}
+                        <div className={styles.messageFooterRow}>
+                          <span>
+                            {msg.text && msg.text !== "\u200B" && highlightText(msg.text, searchQuery)}
+                            {msg.edited && <small className={styles.editedIndicatorTag}> (edited)</small>}
+                          </span>
+                          <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
                         </div>
-                      
-                      
+                      </div>
+
+
                       {msgId && (
-                        <div 
-                          className={`${styles.messageActionTrigger} ${isMenuOpen ? styles.forceVisible : ''}`} 
+                        <div
+                          className={`${styles.messageActionTrigger} ${isMenuOpen ? styles.forceVisible : ''}`}
                           style={{ position: 'absolute', top: '6px', right: '6px' }}
                         >
-                          <button 
+                          <button
                             onClick={(e) => {
                               e.stopPropagation();
                               setOpenMenuId(isMenuOpen ? null : msgId);
-                            }} 
+                            }}
                             className={styles.optionsButton}
                             title="Message options"
                           >
-                            <svg 
-                              xmlns="http://www.w3.org/2000/svg" 
-                              width="14" 
-                              height="14" 
-                              fill="currentColor" 
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="14"
+                              height="14"
+                              fill="currentColor"
                               viewBox="0 0 16 16"
-                              style={{ 
-                                transform: isNearBottom ? 'rotate(180deg)' : 'rotate(0deg)', 
-                                transition: 'transform 0.2s ease' 
+                              style={{
+                                transform: isNearBottom ? 'rotate(180deg)' : 'rotate(0deg)',
+                                transition: 'transform 0.2s ease'
                               }}
                             >
-                              <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/>
+                              <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708" />
                             </svg>
                           </button>
-                      
+
                           {isMenuOpen && (
-                            <div className={menuClass} style={{padding:-0}}>
+                            <div className={menuClass} style={{ padding: -0 }}>
                               {isMe && (
                                 <>
-                                  <button 
+                                  <button
                                     onClick={() => { setOpenMenuId(null); setDeleteModalMessageId(msgId); }}
                                     className={styles.dropdownItemDelete}
                                   >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                      <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
-                                      <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                                      <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z" />
+                                      <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z" />
                                     </svg>
                                     <span>Delete</span>
                                   </button>
-                                  <button 
+                                  <button
                                     onClick={() => { setOpenMenuId(null); setEditingMessageId(msgId); setEditingText(msg.text); }}
                                     className={styles.dropdownItemEdit}
                                   >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                      <path d="m13.498.795.149-.149a1.207 1.207 0 1 1 1.707 1.708l-.149.148a1.5 1.5 0 0 1-.059 2.059L4.854 14.854a.5.5 0 0 1-.233.131l-4 1a.5.5 0 0 1-.606-.606l1-4a.5.5 0 0 1 .131-.232l9.642-9.642a.5.5 0 0 0-.642.056L6.854 4.854a.5.5 0 1 1-.708-.708L9.44.854A1.5 1.5 0 0 1 11.5.796a1.5 1.5 0 0 1 1.998-.001m-.644.766a.5.5 0 0 0-.707 0L1.95 11.756l-.764 3.057 3.057-.764L14.44 3.854a.5.5 0 0 0 0-.708z"/>
+                                      <path d="m13.498.795.149-.149a1.207 1.207 0 1 1 1.707 1.708l-.149.148a1.5 1.5 0 0 1-.059 2.059L4.854 14.854a.5.5 0 0 1-.233.131l-4 1a.5.5 0 0 1-.606-.606l1-4a.5.5 0 0 1 .131-.232l9.642-9.642a.5.5 0 0 0-.642.056L6.854 4.854a.5.5 0 1 1-.708-.708L9.44.854A1.5 1.5 0 0 1 11.5.796a1.5 1.5 0 0 1 1.998-.001m-.644.766a.5.5 0 0 0-.707 0L1.95 11.756l-.764 3.057 3.057-.764L14.44 3.854a.5.5 0 0 0 0-.708z" />
                                     </svg>
                                     Edit
                                   </button>
                                 </>
                               )}
                               {isMe && (
-                                <button 
-                                  className={styles.dropdownItemInfo} 
+                                <button
+                                  className={styles.dropdownItemInfo}
                                   onClick={() => {
                                     setInfoModalMessage(msg);
                                     setOpenMenuId(null);
                                   }}
-                                  style={{marginBottom:0}}
+                                  style={{ marginBottom: 0 }}
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                                    <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1,1,0 1,1-2,0 1,1 0 0,1 2,0"/>
+                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
+                                    <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1,1,0 1,1-2,0 1,1 0 0,1 2,0" />
                                   </svg>
                                   Info
                                 </button>
                               )}
-                              <button 
-                                onClick={() => { setOpenMenuId(null); setActiveThreadMessage(msg); }} 
+                              <button
+                                onClick={() => { setOpenMenuId(null); setActiveThreadMessage(msg); }}
                                 className={styles.threadReplyTriggerBtn}
                                 title="Reply in thread"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                  <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12.793a.5.5 0 0 0 .854.353l2.853-2.853A1 1 0 0 1 4.414 12H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z"/>
-                                  <path d="M3 3.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5M3 6a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9A.5.5 0 0 1 3 6m0 2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5"/>
+                                  <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12.793a.5.5 0 0 0 .854.353l2.853-2.853A1 1 0 0 1 4.414 12H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z" />
+                                  <path d="M3 3.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5M3 6a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9A.5.5 0 0 1 3 6m0 2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5" />
                                 </svg>
                                 <span>Thread</span>
                               </button>

@@ -50,7 +50,7 @@ export default function CallModal({
           <div className={styles.ringContainer}>
             <h3>{callStatus === "incoming" ? `Incoming Call from...` : `Calling...`}</h3>
             <h1>{callerName}</h1>
-            
+
             <div className={styles.actions}>
               {callStatus === "incoming" && (
                 <button className={styles.acceptBtn} onClick={onAccept}>

@@ -16,7 +16,7 @@ export default function EditMessageModal({ isOpen, initialText, onSave, onClose 
       <div className={styles.modalCard} onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px', width: '100%', textAlign: 'left' }}>
         <h3 className={styles.modalTitle} style={{ textAlign: 'center' }}>Edit Message</h3>
         <p className={styles.modalDescription} style={{ textAlign: 'center' }}>Modify your message below. Press <kbd>Enter</kbd> for newlines.</p>
-        
+
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -29,9 +29,9 @@ export default function EditMessageModal({ isOpen, initialText, onSave, onClose 
           <button type="button" onClick={onClose} className={styles.modalCancelBtn}>
             Cancel
           </button>
-          <button 
-            type="button" 
-            onClick={() => onSave(text)} 
+          <button
+            type="button"
+            onClick={() => onSave(text)}
             className={styles.editSaveBtn}
             style={{ flex: 1, padding: '10px' }}
           >

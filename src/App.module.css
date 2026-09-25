@@ -158,6 +158,7 @@ html, body, .container {
   border: 1px solid var(--border-input);
   box-shadow: 0 20px 40px rgba(0,0,0,0.6);
   text-align: center;
+  gap: 12px;
 }
 
 .title {
@@ -172,6 +173,88 @@ html, body, .container {
   color: var(--text-muted);
   margin-bottom: 24px;
   font-size: 14px;
+}
+
+.loginCard input,
+.settingsNameInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid var(--border-input);
+  border-radius: 10px;
+  background: var(--bg-input);
+  color: var(--text-main);
+  font: inherit;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.loginCard input::placeholder,
+.settingsNameInput::placeholder {
+  color: var(--text-subtle);
+}
+
+.loginCard input:focus,
+.settingsNameInput:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
+}
+
+.authDivider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  color: var(--text-subtle);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.authDivider::before,
+.authDivider::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: var(--border-color);
+}
+
+.authMessage,
+.authError {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 9px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.authMessage {
+  color: #a7f3d0;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.authError {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.authSecondaryAction {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border-input);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.authSecondaryAction:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .googleBtn {
@@ -197,6 +280,56 @@ html, body, .container {
   background: #ffffff;
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);
+}
+
+.previewBtn {
+  width: 100%;
+  max-width: 280px;
+  padding: 11px 18px;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #a7f3d0;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.previewBtn:hover {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.6);
+  transform: translateY(-1px);
+}
+
+.previewBanner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 42px;
+  padding: 8px 16px;
+  box-sizing: border-box;
+  background: rgba(16, 185, 129, 0.12);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.25);
+  color: #a7f3d0;
+  font-size: 12px;
+  text-align: center;
+  z-index: 20;
+}
+
+.previewBanner button {
+  border: 1px solid rgba(167, 243, 208, 0.4);
+  border-radius: 7px;
+  padding: 6px 10px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.previewBanner button:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* ==========================================================================
@@ -950,6 +1083,58 @@ html, body, .container {
 
 .modalDeleteBtn:hover {
   opacity: 0.9;
+}
+
+.settingsProfile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0;
+}
+
+.settingsProfileAvatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(59, 130, 246, 0.45);
+}
+
+.settingsProfileName {
+  margin: 0;
+  font-weight: 600;
+}
+
+.settingsProfileEmail {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.settingsNameForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.settingsNameForm label {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.settingsStatus {
+  margin: 0;
+  color: #a7f3d0;
+  font-size: 12px;
+}
+
+.settingsActions {
+  display: flex;
+  gap: 10px;
+  flex-direction: column;
 }
 
 .previewContainer {
