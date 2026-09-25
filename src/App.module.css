@@ -389,6 +389,7 @@ html, body, .container {
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s ease;
+  gap: 5px;
 }
 
 .roomBtn:hover {

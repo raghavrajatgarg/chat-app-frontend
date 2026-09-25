@@ -114,61 +114,88 @@ export default function ChatFeed({
   loadMoreMessages,
   setActiveThreadMessage,
   messagesEndRef,
-  setActiveLightboxImage
+  setActiveLightboxImage,
+  hasMorePages
 }) {
-  const scrollContainerRef = useRef(null);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const anchorMessageIdRef = useRef(null);
-  const lastMessageIdRef = useRef(null);
-    const isInitialLoadRef = useRef(true);
+// Overwrite the top scrolling useEffect block layers inside ChatFeed.jsx to this structure:
+const scrollContainerRef = useRef(null);
+const [isFetchingMore, setIsFetchingMore] = useState(false);
+const lastMessageIdRef = useRef(null); // Retain your specific pagination reference hook
+const isInitialRoomLoadRef = useRef(true);
 
-  // Helper helper function to execute precision snapping to scroll bottom
-  const scrollToBottomDirect = (behavior = 'auto') => {
-    // We request an animation frame to let the DOM fully compute element heights
-    requestAnimationFrame(() => {
-      if (scrollContainerRef.current) {
-        scrollContainerRef.current.scrollTo({
-          top: scrollContainerRef.current.scrollHeight,
-          behavior: behavior
-        });
-      }
-    });
-  };
+// High-precision memory reference pins to manage scroll heights during history compilation pagination
+const previousScrollHeightRef = useRef(0);
+const previousScrollTopRef = useRef(0);
+const isPaginatingRef = useRef(false);
 
-  // 1. TRIGGER ON ROOM CHANGE: Reset layout tracker indexes completely
-  useEffect(() => {
-    isInitialLoadRef.current = true;
-    anchorMessageIdRef.current = null;
-  }, [room]);
-
-  // 2. TRIGGER ON INITIAL LOAD / ROOM ENTRY: Snap instantly to bottom once items populate
-  useEffect(() => {
-    if (!roomLoading && messages.length > 0 && isInitialLoadRef.current) {
-      scrollToBottomDirect('auto'); // Instant snap on load prevents visual loading jank
-      isInitialLoadRef.current = false;
-    }
-  }, [messages, roomLoading]);
-
-  // 3. TRIGGER ON SEND / RECEIVE: Smoothly push viewport layout to bottom tracking additions
-  useEffect(() => {
-    if (messages.length === 0 || isInitialLoadRef.current) return;
-
-    const lastMsg = messages[messages.length - 1];
-    const isMyOwnMessage = lastMsg?.senderUid === user.uid;
-
+const performScrollSnap = (scrollingBehavior = 'auto') => {
+  requestAnimationFrame(() => {
     if (scrollContainerRef.current) {
-      const container = scrollContainerRef.current;
-      
-      // Smart Auto-Scroll Threshold Calculation:
-      // Check if user is already near the bottom zone (within 350px padding area)
-      const isUserNearBottom = (container.scrollHeight - container.scrollTop - container.clientHeight) < 350;
-
-      // Force scroll down if I am the sender OR if user is actively watching live messages
-      if (isMyOwnMessage || isUserNearBottom) {
-        scrollToBottomDirect('smooth'); // Premium animated feel for live events
-      }
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: scrollingBehavior
+      });
     }
-  }, [messages, user.uid]);
+  });
+};
+
+// 1. MONITOR ROOM SELECTION SHIFTS: Wipe parameters to prevent layout pollution
+useEffect(() => {
+  isInitialRoomLoadRef.current = true;
+  lastMessageIdRef.current = null; //
+  isPaginatingRef.current = false;
+}, [room]); //
+
+// 2. CHAT FEED INITIAL ENTRY SNAP: Jump instantly to base bounds on mount
+useEffect(() => {
+  if (!roomLoading && messages.length > 0 && isInitialRoomLoadRef.current) { //
+    performScrollSnap('auto'); 
+    isInitialRoomLoadRef.current = false;
+  }
+}, [messages, roomLoading]); //
+
+// 3. INTEGRATED SCROLL POSITION ENGINE: Handles pagination stability and live messages safely
+useEffect(() => {
+  if (!messages || messages.length === 0 || isInitialRoomLoadRef.current) return;
+  const container = scrollContainerRef.current;
+  if (!container) return;
+
+  // SCENARIO A: PAGINATION COMPLETION ANCHORING DETECTED
+  if (isPaginatingRef.current) {
+    // Calculate how many total vertical pixels were added to the top of the chat area
+    const heightDelta = container.scrollHeight - previousScrollHeightRef.current;
+    
+    // Smoothly restore the viewport position so you do NOT jump or teleport down!
+    container.scrollTop = previousScrollTopRef.current + heightDelta;
+    
+    // Release lock variables for subsequent operations
+    isPaginatingRef.current = false;
+    return;
+  }
+
+  // SCENARIO B: LIVE CHAT TRAFFIC MONITORING DETECTED
+  const finalMessageNode = messages[messages.length - 1];
+  const iAmTheSender = finalMessageNode?.senderUid === user.uid; //
+  
+  const userIsNearBottomBounds = (container.scrollHeight - container.scrollTop - container.clientHeight) < 380;
+
+  if (iAmTheSender || userIsNearBottomBounds) {
+    performScrollSnap('smooth'); 
+  }
+}, [messages.length, user.uid]); // Explicitly dependency tracking on array lengths to ignore active typing variables!
+
+// 4. INTERCEPT BEFORE LOADMORE ACTIONS: Capture height metrics before the API populates newer arrays
+const handleTriggerHistoryFetch = async () => {
+  const container = scrollContainerRef.current;
+  if (container && !isFetchingMore && hasMorePages) { //
+    // Pin active coordinate matrix snapshots into memory reference pointers before state arrays shift
+    previousScrollHeightRef.current = container.scrollHeight;
+    previousScrollTopRef.current = container.scrollTop;
+    isPaginatingRef.current = true; // Set lock to alert our effect processing layer
+
+    await loadMoreMessages(); // Trigger your parent history database API query loop
+  }
+};
 
   // Helper to parse URL from text
 function extractUrl(text) {
@@ -179,7 +206,7 @@ function extractUrl(text) {
 
   useEffect(() => {
     lastMessageIdRef.current = null;
-    anchorMessageIdRef.current = null;
+    lastMessageIdRef.current = null;
   }, [room]);
 
   const filteredMessages = messages.filter(
@@ -189,10 +216,10 @@ function extractUrl(text) {
   const handleScroll = async (e) => {
     const { scrollTop } = e.target;
     if (scrollTop <= 20 && typeof loadMoreMessages === 'function' && !searchQuery.trim() && !isFetchingMore && filteredMessages.length > 0) {
-      anchorMessageIdRef.current = filteredMessages[0]._id || filteredMessages[0].id;
+      lastMessageIdRef.current = filteredMessages[0]._id || filteredMessages[0].id;
       setIsFetchingMore(true);
       try {
-        await loadMoreMessages();
+        await handleTriggerHistoryFetch();
       } catch (error) {
         console.error("Failed to load more messages:", error);
       } finally {
@@ -222,28 +249,6 @@ function extractUrl(text) {
     };
   }, [openMenuId, setOpenMenuId]);
 
-  useEffect(() => {
-    if (searchQuery.trim() || messages.length === 0 || isFetchingMore || anchorMessageIdRef.current) return;
-
-    const lastMsg = messages[messages.length - 1];
-    const lastMsgId = lastMsg?._id || lastMsg?.id;
-
-    if (lastMsgId && lastMsgId !== lastMessageIdRef.current) {
-      const isInitialLoad = lastMessageIdRef.current === null;
-      lastMessageIdRef.current = lastMsgId;
-      
-      if (scrollContainerRef.current) {
-        if (isInitialLoad) {
-          scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-        } else {
-          scrollContainerRef.current.scrollTo({
-            top: scrollContainerRef.current.scrollHeight,
-            behavior: 'smooth'
-          });
-        }
-      }
-    }
-  }, [messages, searchQuery, isFetchingMore]);
 
   return (
     <div 

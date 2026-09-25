@@ -1030,6 +1030,7 @@ const handleEditMessage = (newText) => {
                 handleSendAudio={handleSendAudio}
                 setIsStudioOpen={setIsStudioOpen}
                 setCaptureType={setCaptureType}
+                setSelectedImage={setSelectedImage} 
               />
             </div>
           </div>
@@ -1179,6 +1180,7 @@ const handleEditMessage = (newText) => {
         onClose={() => setIsStudioOpen(false)}
         onSaveScreenshot={(base64Data) => setSelectedImage(base64Data)}
         captureType={captureType}
+        selectedImage={selectedImage}
       />
     </div>
   );
