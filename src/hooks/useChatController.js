@@ -7,7 +7,7 @@ import { auth, googleProvider } from '../firebase';
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://chat-app-backend-1yfa.onrender.com';
 const ROOMS_LIST = ['general', 'tech', 'random', 'gaming'];
 
-export default function useChatController({ callControllerRef, providedSocketRef }) {
+export default function useChatController({ callControllerRef, providedSocketRef, activeConversationId }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState([]);
@@ -46,6 +46,8 @@ export default function useChatController({ callControllerRef, providedSocketRef
   const typingTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
   const activeThreadMessageRef = useRef(null);
+  const [drafts, setDrafts] = useState({});
+  const [currentText, setCurrentText] = useState('');
 
   useEffect(() => onAuthStateChanged(auth, (nextUser) => {
     const isUnverifiedPasswordUser = nextUser?.providerData.some((provider) => provider.providerId === 'password') && !nextUser.emailVerified;
@@ -283,6 +285,22 @@ export default function useChatController({ callControllerRef, providedSocketRef
   const activeHeaderTitle = activeHeaderUser?.name || `# ${room}`;
   const displayedMessages = searchQuery.trim() ? searchResults : messages;
   const filteredMessages = displayedMessages.filter((message) => !message.parentId && (!searchQuery.trim() || (message.text && message.text.toLowerCase().includes(searchQuery.toLowerCase()))));
+  useEffect(() => {
+    if (activeConversationId) {
+      setCurrentText(drafts[activeConversationId] || '');
+    }
+  }, [activeConversationId]);
 
-  return { BACKEND_URL, ROOMS_LIST, user, loading, messages, activeUsers, newMessage, room, roomLoading, deleteModalMessageId, setDeleteModalMessageId, isDeleting, setIsDeleting, typingUser, unreadCounts, openMenuId, setOpenMenuId, isMobileMenuOpen, setIsMobileMenuOpen, showScrollBtn, setShowScrollBtn, selectedImage, setSelectedImage, isSendingImage, editingMessageId, setEditingMessageId, editingText, setEditingText, searchQuery, setSearchQuery, allRegisteredUsers, infoModalMessage, setInfoModalMessage, isSettingsOpen, setIsSettingsOpen, isFetchingMore, hasMorePages, activeThreadMessage, setActiveThreadMessage, threadMessages, threadInput, setThreadInput, searchInputRef, fileInputRef, messagesEndRef, socketRef, isPrivateRoom, activeHeaderTitle, activeHeaderUser, activeHeaderAvatar: activeHeaderUser?.avatar || null, isHeaderUserOnline: activeHeaderUser ? activeUsers.some((item) => item.uid === activeHeaderUser.uid) : false, filteredMessages, handleSelectRoom, handleOpenPrivateChat, handleInputChange, handleGoogleLogin, handleEmailLogin, handleResendVerification, refreshUser, handleUpdateDisplayName, handleSendMessage, handleEditMessage, handleSendThreadReply, handleSendAudio, handleImageSelect, handlePaste, loadMoreMessages, highlightText, formatLastSeen, setRoom, sendError };
+  const handleTextChange = (text) => {
+    setCurrentText(text);
+    setDrafts((prev) => ({
+      ...prev,
+      [activeConversationId]: text,
+    }));
+  };
+  const handleToggleReaction = useCallback((messageId, emoji) => {
+  if (!socketRef.current) return;
+  socketRef.current.emit('toggle_reaction', { messageId, emoji });
+}, [socketRef]);  
+  return { handleToggleReaction, currentText, handleTextChange, BACKEND_URL, ROOMS_LIST, user, loading, messages, activeUsers, newMessage, room, roomLoading, deleteModalMessageId, setDeleteModalMessageId, isDeleting, setIsDeleting, typingUser, unreadCounts, openMenuId, setOpenMenuId, isMobileMenuOpen, setIsMobileMenuOpen, showScrollBtn, setShowScrollBtn, selectedImage, setSelectedImage, isSendingImage, editingMessageId, setEditingMessageId, editingText, setEditingText, searchQuery, setSearchQuery, allRegisteredUsers, infoModalMessage, setInfoModalMessage, isSettingsOpen, setIsSettingsOpen, isFetchingMore, hasMorePages, activeThreadMessage, setActiveThreadMessage, threadMessages, threadInput, setThreadInput, searchInputRef, fileInputRef, messagesEndRef, socketRef, isPrivateRoom, activeHeaderTitle, activeHeaderUser, activeHeaderAvatar: activeHeaderUser?.avatar || null, isHeaderUserOnline: activeHeaderUser ? activeUsers.some((item) => item.uid === activeHeaderUser.uid) : false, filteredMessages, handleSelectRoom, handleOpenPrivateChat, handleInputChange, handleGoogleLogin, handleEmailLogin, handleResendVerification, refreshUser, handleUpdateDisplayName, handleSendMessage, handleEditMessage, handleSendThreadReply, handleSendAudio, handleImageSelect, handlePaste, loadMoreMessages, highlightText, formatLastSeen, setRoom, sendError };
 }

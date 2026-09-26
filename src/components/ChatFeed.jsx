@@ -326,7 +326,13 @@ export default function ChatFeed({
               // Only flip upward if it's NOT in the first few messages AND it's near the bottom
               menuClass = styles.dropdownMenuFlipped;
             }
-
+            const prevMsg = filteredMessages[index - 1];
+            const isSameSender = prevMsg && prevMsg.senderUid === msg.senderUid;
+            const timeDiff = prevMsg && msg.createdAt && prevMsg.createdAt
+              ? new Date(msg.createdAt) - new Date(prevMsg.createdAt)
+              : 0;
+            const isWithinTimeWindow = timeDiff < 5 * 60 * 1000;
+            const showHeader = (!isSameSender && !isWithinTimeWindow);
             return (
               <div
                 key={msgId || index}
@@ -339,9 +345,15 @@ export default function ChatFeed({
                 }}
               >
                 <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
-                  {!isMe && <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />}
+                  {!isMe && (
+                    <div style={{ width: '32px', flexShrink: 0 }}>
+                      {showHeader ? (
+                        <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />
+                      ) : null}
+                    </div>
+                  )}
                   <div>
-                    {!isMe && <small className={styles.messageSenderName}>{msg.sender}</small>}
+                    {!isMe && showHeader && <small className={styles.messageSenderName}>{msg.sender}</small>}
 
                     <div
                       className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}
@@ -464,6 +476,44 @@ export default function ChatFeed({
                               </button>
                             </div>
                           )}
+                          <div className={styles.dropdownQuickReactions}>
+                            {['👍', '❤️', '😂', '😮', '😢', '🙏'].map((emoji) => (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => {
+                                  handleToggleReaction(msgId, emoji);
+                                  setOpenMenuId(null);
+                                }}
+                                className={styles.quickReactionEmojiBtn}
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {msg.reactions && msg.reactions.length > 0 && (
+                        <div className={styles.reactionBadgesRow}>
+                          {Object.entries(
+                            msg.reactions.reduce((acc, r) => {
+                              acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                              return acc;
+                            }, {})
+                          ).map(([emoji, count]) => {
+                            const hasReacted = msg.reactions.some(r => r.emoji === emoji && r.userId === user.uid);
+                            return (
+                              <button
+                                key={emoji}
+                                type="button"
+                                onClick={() => handleToggleReaction(msgId, emoji)}
+                                className={`${styles.reactionBadgeBtn} ${hasReacted ? styles.reactionBadgeActive : ''}`}
+                              >
+                                <span>{emoji}</span>
+                                {count > 1 && <span className={styles.reactionCount}>{count}</span>}
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
 
