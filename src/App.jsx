@@ -78,7 +78,7 @@ export default function App() {
           {isDemo && <div className={styles.previewBanner}><span>Preview mode: changes stay in this browser and are never saved.</span><button type="button" onClick={() => setIsDemo(false)}>Create an account</button></div>}
           <ChatShell state={activeChat} recording={recording} styles={styles}
             onStudioOpen={() => setIsStudioOpen(true)} onCaptureTypeChange={setCaptureType}
-            onOpenLightbox={lightbox.setActiveLightboxImage} onStartCall={() => window.alert('Calls are available after you create an account.')} />
+            onOpenLightbox={lightbox.setActiveLightboxImage} onStartCall={() => window.alert('Calls are available after you create an account.')} handleToggleReaction={activeChat.handleToggleReaction}/>
         </>
       )}
       <Lightbox image={lightbox.activeLightboxImage} styles={styles} lightbox={lightbox}

@@ -112,7 +112,8 @@ export default function ChatFeed({
   setActiveThreadMessage,
   messagesEndRef,
   setActiveLightboxImage,
-  hasMorePages
+  hasMorePages,
+  handleToggleReaction
 }) {
   // Overwrite the top scrolling useEffect block layers inside ChatFeed.jsx to this structure:
   const scrollContainerRef = useRef(null);
@@ -123,6 +124,8 @@ export default function ChatFeed({
   const previousMessagesRef = useRef({ room, count: 0, lastMessageKey: null });
   const shouldStickToBottomRef = useRef(true);
   const isFetchingMoreRef = useRef(false);
+  const [openReactionMenuId, setOpenReactionMenuId] = useState(null);
+
 
   // Keep the first visible message at the same viewport coordinate after a prepend.
   const paginationAnchorRef = useRef(null);
@@ -269,9 +272,12 @@ export default function ChatFeed({
       if (!openMenuId) return;
       const clickedInsideMenu = event.target.closest(`.${styles.dropdownMenu}`) ||
         event.target.closest(`.${styles.dropdownMenuFlipped}`) ||
-        event.target.closest(`.${styles.messageActionTrigger}`);
+        event.target.closest(`.${styles.messageActionTrigger}`) ||
+      event.target.closest(`.${styles.dropdownQuickReactions}`) || // Protect the reaction pill
+        event.target.closest(`.${styles.emojiToggle}`);
       if (!clickedInsideMenu) {
         setOpenMenuId(null);
+        setOpenReactionMenuId(null);
       }
     };
 
@@ -359,7 +365,7 @@ export default function ChatFeed({
                       className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}
                       style={{ position: 'relative', paddingRight: msgId ? '28px' : '14px' }}
                     >
-
+                       
                       <div className={styles.messageText}>
                         {msg.image && (
                           <img
@@ -421,7 +427,6 @@ export default function ChatFeed({
                               <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708" />
                             </svg>
                           </button>
-
                           {isMenuOpen && (
                             <div className={menuClass} style={{ padding: -0 }}>
                               {isMe && (
@@ -476,46 +481,70 @@ export default function ChatFeed({
                               </button>
                             </div>
                           )}
-                          <div className={styles.dropdownQuickReactions}>
-                            {['👍', '❤️', '😂', '😮', '😢', '🙏'].map((emoji) => (
-                              <button
-                                key={emoji}
-                                type="button"
-                                onClick={() => {
-                                  handleToggleReaction(msgId, emoji);
-                                  setOpenMenuId(null);
-                                }}
-                                className={styles.quickReactionEmojiBtn}
-                              >
-                                {emoji}
-                              </button>
-                            ))}
-                          </div>
                         </div>
                       )}
-                      {msg.reactions && msg.reactions.length > 0 && (
-                        <div className={styles.reactionBadgesRow}>
-                          {Object.entries(
-                            msg.reactions.reduce((acc, r) => {
-                              acc[r.emoji] = (acc[r.emoji] || 0) + 1;
-                              return acc;
-                            }, {})
-                          ).map(([emoji, count]) => {
-                            const hasReacted = msg.reactions.some(r => r.emoji === emoji && r.userId === user.uid);
-                            return (
-                              <button
-                                key={emoji}
-                                type="button"
-                                onClick={() => handleToggleReaction(msgId, emoji)}
-                                className={`${styles.reactionBadgeBtn} ${hasReacted ? styles.reactionBadgeActive : ''}`}
-                              >
-                                <span>{emoji}</span>
-                                {count > 1 && <span className={styles.reactionCount}>{count}</span>}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
+                      {/* PLACE THIS AT THE VERY BOTTOM INSIDE THE .messageBubbleBase DIV Container */}
+{/* {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+  <div className={styles.reactionBadgesRow}>
+    {Object.entries(msg.reactions).map(([emoji, uids]) => {
+      // Only render the badge if it actually has votes/users attached
+      if (!uids || uids.length === 0) return null;
+      
+      const hasIReacted = uids.includes(user.uid);
+      return (
+        <button
+          key={emoji}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleToggleReaction(msgId, emoji);
+          }}
+          className={`${styles.reactionBadgeBtn} ${hasIReacted ? styles.reactionBadgeActive : ''}`}
+        >
+          <span className={styles.reactionEmoji}>{emoji}</span>
+          {uids.length > 1 && <span className={styles.reactionCount}>{uids.length}</span>}
+        </button>
+      );
+    })}
+  </div>
+)} */}
+ <>
+                          {/* The Emoji Toggle Icon Button */}
+                          <button
+                            type="button"
+                            className={`${styles.emojiToggle} ${openReactionMenuId === msgId ? styles.forceVisible : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuId(null); // Close option menu if open
+                              setOpenReactionMenuId(openReactionMenuId === msgId ? null : msgId);
+                            }}
+                          >
+                            <svg xmlns="http://w3.org" width="16" height="16" fill="currentColor" className="bi bi-emoji-smile" viewBox="0 0 16 16">
+                              <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
+                              <path d="M4.285 9.567a.5.5 0 0 1 .683.183A3.5 3.5 0 0 0 8 11.5a3.5 3.5 0 0 0 3.032-1.75.5.5 0 1 1 .866.5A4.5 4.5 0 0 1 8 12.5a4.5 4.5 0 0 1-3.898-2.25.5.5 0 0 1 .183-.683M7 6.5C7 7.328 6.552 8 6 8s-1-.672-1-1.5S5.448 5 6 5s1 .672 1 1.5m4 0c0 .828-.448 1.5-1 1.5s-1-.672-1-1.5S9.448 5 10 5s1 .672 1 1.5" />
+                            </svg>
+                          </button>
+
+                          {/* Independent WhatsApp Quick Reaction Pill Menu */}
+                          {openReactionMenuId === msgId && (
+                            <div className={styles.dropdownQuickReactions}>
+                              {['👍', '❤️', '😂', '😮', '😢', '🙏'].map((emoji) => (
+                                <button
+                                  key={emoji}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleReaction(msgId, emoji);
+                                    setOpenReactionMenuId(null); // Close after reacting
+                                  }}
+                                  className={styles.quickReactionEmojiBtn}
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </>
 
                     </div>
                   </div>

@@ -15,7 +15,7 @@ export default function ChatShell({ state, styles, recording, onStudioOpen, onSt
     setDeleteModalMessageId, highlightText, messagesEndRef, setInfoModalMessage, loadMoreMessages,
     hasMorePages, isFetchingMore, setShowScrollBtn, setActiveThreadMessage,
     typingUser, activeThreadMessage, setThreadInput, threadMessages, threadInput, handleSendThreadReply,
-    newMessage, handleInputChange, handlePaste, handleSendMessage, fileInputRef, isSending, sendError,
+    newMessage, handleInputChange, handlePaste, handleSendMessage, fileInputRef, isSending, sendError, handleToggleReaction,
     setSelectedImage: selectImage,
   } = state;
 
@@ -32,7 +32,7 @@ export default function ChatShell({ state, styles, recording, onStudioOpen, onSt
           unreadCounts={unreadCounts} activeUsers={activeUsers} allUsers={allRegisteredUsers} currentUser={user}
           isMobileMenuOpen={isMobileMenuOpen} onCloseMobileMenu={() => setIsMobileMenuOpen(false)} />
         <div className={styles.chatWindow}>
-          <ChatFeed messages={filteredMessages} user={user} searchQuery={searchQuery} roomLoading={roomLoading} room={room}
+          <ChatFeed messages={filteredMessages} handleToggleReaction={handleToggleReaction} user={user} searchQuery={searchQuery} roomLoading={roomLoading} room={room}
             selectedImage={selectedImage} isSendingImage={isSendingImage} setSelectedImage={setSelectedImage}
             editingMessageId={editingMessageId} setEditingMessageId={setEditingMessageId} editingText={editingText}
             setEditingText={setEditingText} handleEditMessage={handleEditMessage} openMenuId={openMenuId} setOpenMenuId={setOpenMenuId}
