@@ -324,6 +324,10 @@
     display: none !important;
   }
 
+  .screenshotDropupItem {
+    display: none !important;
+  }
+
   /* Hides the slider itself */
   .previewAudioPlayer::-webkit-media-controls-volume-slider {
     display: none !important;

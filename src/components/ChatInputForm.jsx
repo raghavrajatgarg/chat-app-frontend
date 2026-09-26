@@ -11,10 +11,10 @@ export default function ChatInputForm({
   handleInputChange,
   handlePaste,
   handleSendMessage,
+  sendError,
   roomLoading,
   isSendingImage,
   fileInputRef,
-  handleImageSelect,
   isSending,
   isRecording,
   startRecording,
@@ -31,23 +31,20 @@ export default function ChatInputForm({
   const menuRef = useRef(null);
   const textareaRef = useRef(null);
   const cameraInputRef = useRef(null);
-  // Inside src/components/ChatInputForm.jsx (Near the top of the component)
-  const handleCameraCapture = (e) => {
+  const handleDeviceImageSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.readAsDataURL(file);
+    reader.onerror = () => console.error('Could not read the selected image.');
     reader.onload = (event) => {
-      const base64DataUrl = event.target.result;
-
-      // First setup type boundaries
+      const imageDataUrl = event.target.result;
       setCaptureType('camera');
-
-      // Pass the raw base64 data to our chat preview AND trigger the studio modal setup
-      setSelectedImage(base64DataUrl);
-      setIsStudioOpen(base64DataUrl); // FIX: Pass dataUrl directly as truthy verification flag
+      setSelectedImage(imageDataUrl);
+      setIsStudioOpen(true);
     };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
 
@@ -110,8 +107,20 @@ export default function ChatInputForm({
     startRecording();
   };
 
+  const handleCameraClick = () => {
+    setShowAttachMenu(false);
+    if (window.matchMedia('(max-width: 768px)').matches) {
+      cameraInputRef.current?.click();
+      return;
+    }
+    setSelectedImage(null);
+    setCaptureType('camera');
+    setIsStudioOpen(true);
+  };
+
   return (
     <div className={styles.formWidthWrapper}>
+      {sendError && <p className={styles.sendError} role="alert">{sendError}</p>}
       {isRecording ? (
         <div className={styles.recordingBar}>
           <div className={styles.recordingIndicator}>
@@ -156,7 +165,7 @@ export default function ChatInputForm({
             type="file"
             accept="image/*"
             ref={fileInputRef}
-            onChange={handleImageSelect}
+            onChange={handleDeviceImageSelect}
             style={{ display: 'none' }}
           />
 
@@ -165,7 +174,7 @@ export default function ChatInputForm({
             accept="image/*"
             capture="environment"
             ref={cameraInputRef}
-            onChange={handleCameraCapture}
+            onChange={handleDeviceImageSelect}
             style={{ display: 'none' }}
           />
 
@@ -198,29 +207,33 @@ export default function ChatInputForm({
                 <button
                   type="button"
                   onClick={() => { setShowAttachMenu(false); setCaptureType('screen'); setIsStudioOpen(true); }}
-                  className={styles.dropupItem}
+                  className={`${styles.dropupItem} ${styles.screenshotDropupItem}`}
                 >
                   <svg xmlns="http://w3.org" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                     <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 1 0v-2.5h2.5a.5.5 0 0 0 0-1zM12 1.5a.5.5 0 0 1 .5-.5h2.5a.5.5 0 0 1 .5.5v2.5a.5.5 0 0 1-1 0v-2.5h-2.5a.5.5 0 0 1-.5-.5M1.5 12a.5.5 0 0 1 .5.5v2.5h2.5a.5.5 0 0 1 0 1H1.5a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 .5-.5m13 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2.5v-2.5a.5.5 0 0 1 .5-.5M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 1h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1" />
                   </svg>
-                  <span>Screenshot Studio</span>
+                  <span>Screenshot</span>
                 </button>
 
                 {/* Camera Studio Button */}
                 <button
                   type="button"
-                  onClick={() => { setShowAttachMenu(false); cameraInputRef.current.click(); }}
+                  onClick={handleCameraClick}
                   className={styles.dropupItem}
                 >
                   <svg xmlns="http://w3.org" width="16" height="16" fill="currentColor" className="bi bi-camera" viewBox="0 0 16 16">
                     <path d="M15 12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h1.172a3 3 0 0 0 2.12-.879l.83-.828A1 1 0 0 1 6.827 3h2.344a1 1 0 0 1 .707.293l.828.828A3 3 0 0 0 12.828 5H14a1 1 0 0 1 1 1zM2 4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1.172a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 9.172 2H6.828a2 2 0 0 0-1.414.586l-.828.828A2 2 0 0 1 3.172 4z" />
                     <path d="M8 11a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5m0 1a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M3 6.5a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0" />
                   </svg>
-                  <span>Camera Studio</span>
+                  <span>Camera</span>
                 </button>
 
                 {/* Voice Note Button */}
                 <button type="button" onClick={handleSelectAudio} className={`${styles.dropupItem} ${styles.voiceBtn}`}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-mic" viewBox="0 0 16 16">
+  <path d="M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5"/>
+  <path d="M10 8a2 2 0 1 1-4 0V3a2 2 0 1 1 4 0zM8 0a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V3a3 3 0 0 0-3-3"/>
+</svg>
                   <span>Voice Note</span>
                 </button>
               </div>

@@ -28,6 +28,7 @@ export default function useChatController({ callControllerRef, providedSocketRef
   const [editingText, setEditingText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [allRegisteredUsers, setAllRegisteredUsers] = useState([]);
+  const [sendError, setSendError] = useState('');
   const [infoModalMessage, setInfoModalMessage] = useState(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
@@ -150,7 +151,11 @@ export default function useChatController({ callControllerRef, providedSocketRef
     const controller = new AbortController();
     fetchWithAuth(`${BACKEND_URL}/api/messages?room=${room}&limit=30`, { signal: controller.signal })
       .then((response) => response.json())
-      .then((data) => { setMessages(data); setRoomLoading(false); setHasMorePages(data.length === 30); })
+      .then((data) => {
+        setMessages(data);
+        setRoomLoading(false);
+        setHasMorePages(data.length === 30);
+      })
       .catch((error) => { if (error.name !== 'AbortError') { console.error('Error loading chat history:', error); setRoomLoading(false); } });
     socketRef.current?.emit('join_room', room);
     return () => controller.abort();
@@ -178,8 +183,10 @@ export default function useChatController({ callControllerRef, providedSocketRef
     if (!searchQuery.trim()) { setSearchResults([]); return undefined; }
     const timer = setTimeout(async () => {
       try {
-        const response = await fetchWithAuth(`${BACKEND_URL}/api/messages/search?room=${room}&query=${encodeURIComponent(searchQuery)}`);
-        if (response.ok) setSearchResults(await response.json());
+          const response = await fetchWithAuth(`${BACKEND_URL}/api/messages/search?room=${room}&query=${encodeURIComponent(searchQuery)}`);
+        if (response.ok) {
+          setSearchResults(await response.json());
+        }
       } catch (error) { console.error('Failed to search messages:', error); }
       finally { /* Search state is represented by the current query/results. */ }
     }, 400);
@@ -191,6 +198,7 @@ export default function useChatController({ callControllerRef, providedSocketRef
   const handleInputChange = (event) => {
     const value = event.target.value;
     setNewMessage(value);
+    setSendError('');
     if (!socketRef.current) return;
     socketRef.current.emit('typing_start', { room, userName: user.displayName || user.email });
     clearTimeout(typingTimeoutRef.current);
@@ -229,15 +237,18 @@ export default function useChatController({ callControllerRef, providedSocketRef
       const text = newMessage.trim() || '\u200B';
       const optimisticMessage = { _id: clientMessageId, clientMessageId, text, sender: user.displayName || user.email, senderUid: user.uid, image: imageUrl || null, avatar: user.photoURL, room, createdAt: new Date(), pending: true };
       setNewMessage(''); setSelectedImage(null); setMessages((prev) => [...prev, optimisticMessage]);
-      socketRef.current.emit('send_message', { clientMessageId, text, image: imageUrl || null, room });
+      socketRef.current.emit('send_message', { clientMessageId, text, image: imageUrl || null, room }, (response) => {
+        if (!response?.success) setSendError(response?.error || 'Message could not be saved.');
+      });
     } catch (error) {
+      setSendError(error.message || 'Could not upload this image.');
       console.error('Failed to upload image:', error);
     } finally {
       setIsSending(false);
     }
   };
   const handleEditMessage = (text) => { if (!text.trim() || !socketRef.current || !editingMessageId) return; socketRef.current.emit('edit_message', { messageId: editingMessageId, text, userId: user.uid, room }); setEditingMessageId(null); setEditingText(''); };
-  const handleSendThreadReply = (event) => { event.preventDefault(); if (!threadInput.trim() || !socketRef.current || !activeThreadMessage) return; socketRef.current.emit('send_message', { text: threadInput.trim(), sender: user.displayName || user.email, senderUid: user.uid, avatar: user.photoURL, room, parentId: activeThreadMessage._id, createdAt: new Date() }, (response) => { if (response?.success) setThreadInput(''); }); };
+  const handleSendThreadReply = (event) => { event.preventDefault(); if (!threadInput.trim() || !socketRef.current || !activeThreadMessage) return; socketRef.current.emit('send_message', { text: threadInput.trim(), sender: user.displayName || user.email, senderUid: user.uid, avatar: user.photoURL, room, parentId: activeThreadMessage._id, createdAt: new Date() }, (response) => { if (response?.success) setThreadInput(''); else setSendError(response?.error || 'Reply could not be saved.'); }); };
   const handleSendAudio = async (audioBlob) => {
     if (!audioBlob || !socketRef.current) return false;
     setIsSending(true);
@@ -246,9 +257,12 @@ export default function useChatController({ callControllerRef, providedSocketRef
       const clientMessageId = `client-${Date.now()}-${Math.random()}`;
       const optimisticMessage = { _id: clientMessageId, clientMessageId, text: '', audio: audioUrl, sender: user.displayName || user.email, senderUid: user.uid, avatar: user.photoURL, room, createdAt: new Date(), pending: true };
       setMessages((prev) => [...prev, optimisticMessage]);
-      socketRef.current.emit('send_message', { clientMessageId, text: '', audio: audioUrl, room });
+      socketRef.current.emit('send_message', { clientMessageId, text: '', audio: audioUrl, room }, (response) => {
+        if (!response?.success) setSendError(response?.error || 'Voice note could not be saved.');
+      });
       return true;
     } catch (error) {
+      setSendError(error.message || 'Could not upload this voice note.');
       console.error('Failed to upload audio:', error);
       return false;
     } finally {
@@ -261,7 +275,7 @@ export default function useChatController({ callControllerRef, providedSocketRef
     reader.onload = (loadEvent) => { const image = new Image(); image.src = loadEvent.target.result; image.onload = () => { const canvas = document.createElement('canvas'); const ratio = Math.min(1000 / image.width, 1000 / image.height, 1); canvas.width = image.width * ratio; canvas.height = image.height * ratio; canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height); setSelectedImage(canvas.toDataURL('image/jpeg', 0.7)); }; };
   };
   const handlePaste = (event) => { Array.from(event.clipboardData.items).filter((item) => item.type.includes('image')).forEach((item) => { const file = item.getAsFile(); const reader = new FileReader(); reader.onloadend = () => setSelectedImage(reader.result); reader.readAsDataURL(file); }); };
-  const loadMoreMessages = async () => { if (isFetchingMore || !hasMorePages || !messages.length) return; setIsFetchingMore(true); try { const response = await fetchWithAuth(`${BACKEND_URL}/api/messages?room=${room}&limit=30&before=${messages[0].createdAt}`); const older = await response.json(); if (!older.length || older.length < 30) setHasMorePages(false); if (older.length) setMessages((prev) => [...older, ...prev]); } catch (error) { console.error('Failed to load older messages', error); } finally { setIsFetchingMore(false); } };
+  const loadMoreMessages = async () => { if (isFetchingMore || !hasMorePages || !messages.length) return false; setIsFetchingMore(true); try { const response = await fetchWithAuth(`${BACKEND_URL}/api/messages?room=${room}&limit=30&before=${messages[0].createdAt}`); const older = await response.json(); if (!older.length || older.length < 30) setHasMorePages(false); if (older.length) setMessages((prev) => [...older, ...prev]); return older.length > 0; } catch (error) { console.error('Failed to load older messages', error); return false; } finally { setIsFetchingMore(false); } };
   const highlightText = useCallback((text, highlight) => { if (!highlight.trim()) return text; const escaped = highlight.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'); const regex = new RegExp(`(${escaped})`, 'gi'); return text.split(regex).map((part, index) => regex.test(part) ? createElement('mark', { key: index }, part) : part); }, []);
   const formatLastSeen = (dateString) => { if (!dateString) return 'Offline'; const date = new Date(dateString); const now = new Date(); if (date.toDateString() === now.toDateString()) return `Last seen at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`; const yesterday = new Date(); yesterday.setDate(now.getDate() - 1); if (date.toDateString() === yesterday.toDateString()) return `Last seen yesterday at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`; return `Last seen on ${date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`; };
   const isPrivateRoom = room.includes('_');
@@ -270,5 +284,5 @@ export default function useChatController({ callControllerRef, providedSocketRef
   const displayedMessages = searchQuery.trim() ? searchResults : messages;
   const filteredMessages = displayedMessages.filter((message) => !message.parentId && (!searchQuery.trim() || (message.text && message.text.toLowerCase().includes(searchQuery.toLowerCase()))));
 
-  return { BACKEND_URL, ROOMS_LIST, user, loading, messages, activeUsers, newMessage, room, roomLoading, deleteModalMessageId, setDeleteModalMessageId, isDeleting, setIsDeleting, typingUser, unreadCounts, openMenuId, setOpenMenuId, isMobileMenuOpen, setIsMobileMenuOpen, showScrollBtn, setShowScrollBtn, selectedImage, setSelectedImage, isSendingImage, editingMessageId, setEditingMessageId, editingText, setEditingText, searchQuery, setSearchQuery, allRegisteredUsers, infoModalMessage, setInfoModalMessage, isSettingsOpen, setIsSettingsOpen, isFetchingMore, hasMorePages, activeThreadMessage, setActiveThreadMessage, threadMessages, threadInput, setThreadInput, searchInputRef, fileInputRef, messagesEndRef, socketRef, isPrivateRoom, activeHeaderTitle, activeHeaderUser, activeHeaderAvatar: activeHeaderUser?.avatar || null, isHeaderUserOnline: activeHeaderUser ? activeUsers.some((item) => item.uid === activeHeaderUser.uid) : false, filteredMessages, handleSelectRoom, handleOpenPrivateChat, handleInputChange, handleGoogleLogin, handleEmailLogin, handleResendVerification, refreshUser, handleUpdateDisplayName, handleSendMessage, handleEditMessage, handleSendThreadReply, handleSendAudio, handleImageSelect, handlePaste, loadMoreMessages, highlightText, formatLastSeen, setRoom };
+  return { BACKEND_URL, ROOMS_LIST, user, loading, messages, activeUsers, newMessage, room, roomLoading, deleteModalMessageId, setDeleteModalMessageId, isDeleting, setIsDeleting, typingUser, unreadCounts, openMenuId, setOpenMenuId, isMobileMenuOpen, setIsMobileMenuOpen, showScrollBtn, setShowScrollBtn, selectedImage, setSelectedImage, isSendingImage, editingMessageId, setEditingMessageId, editingText, setEditingText, searchQuery, setSearchQuery, allRegisteredUsers, infoModalMessage, setInfoModalMessage, isSettingsOpen, setIsSettingsOpen, isFetchingMore, hasMorePages, activeThreadMessage, setActiveThreadMessage, threadMessages, threadInput, setThreadInput, searchInputRef, fileInputRef, messagesEndRef, socketRef, isPrivateRoom, activeHeaderTitle, activeHeaderUser, activeHeaderAvatar: activeHeaderUser?.avatar || null, isHeaderUserOnline: activeHeaderUser ? activeUsers.some((item) => item.uid === activeHeaderUser.uid) : false, filteredMessages, handleSelectRoom, handleOpenPrivateChat, handleInputChange, handleGoogleLogin, handleEmailLogin, handleResendVerification, refreshUser, handleUpdateDisplayName, handleSendMessage, handleEditMessage, handleSendThreadReply, handleSendAudio, handleImageSelect, handlePaste, loadMoreMessages, highlightText, formatLastSeen, setRoom, sendError };
 }

@@ -120,8 +120,11 @@ export default function App() {
       <CallModal callStatus={call.callStatus} callerName={call.callerInfo.name}
         onAccept={call.acceptCall} onReject={call.handleHangup}
         localStream={call.localStream} remoteStream={call.remoteStream} />
-      <ScreenCaptureModal isOpen={isStudioOpen} onClose={() => setIsStudioOpen(false)}
-        onSaveScreenshot={activeChat.setSelectedImage} captureType={captureType} selectedImage={activeChat.selectedImage} />
+      {isStudioOpen && <ScreenCaptureModal isOpen={isStudioOpen} onClose={(discard = false) => {
+        setIsStudioOpen(false);
+        if (discard && captureType === 'camera') activeChat.setSelectedImage(null);
+      }}
+        onSaveScreenshot={activeChat.setSelectedImage} captureType={captureType} selectedImage={activeChat.selectedImage} />}
     </div>
   );
 }

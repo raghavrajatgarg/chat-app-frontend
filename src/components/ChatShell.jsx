@@ -15,8 +15,8 @@ export default function ChatShell({ state, styles, recording, onStudioOpen, onSt
     setDeleteModalMessageId, highlightText, messagesEndRef, setInfoModalMessage, loadMoreMessages,
     hasMorePages, isFetchingMore, setShowScrollBtn, setActiveThreadMessage,
     typingUser, activeThreadMessage, setThreadInput, threadMessages, threadInput, handleSendThreadReply,
-    newMessage, handleInputChange, handlePaste, handleSendMessage, fileInputRef, isSending,
-    handleImageSelect, setSelectedImage: selectImage,
+    newMessage, handleInputChange, handlePaste, handleSendMessage, fileInputRef, isSending, sendError,
+    setSelectedImage: selectImage,
   } = state;
 
   return (
@@ -46,7 +46,7 @@ export default function ChatShell({ state, styles, recording, onStudioOpen, onSt
             handleSendThreadReply={handleSendThreadReply} />
           <ChatInputForm newMessage={newMessage} handleInputChange={handleInputChange} handlePaste={handlePaste}
             handleSendMessage={handleSendMessage} roomLoading={roomLoading} isSendingImage={isSendingImage} fileInputRef={fileInputRef}
-            isSending={isSending} handleImageSelect={handleImageSelect} isRecording={recording.isRecording}
+            isSending={isSending} sendError={sendError} isRecording={recording.isRecording}
             startRecording={recording.startRecording} stopRecording={recording.stopRecording} cancelRecording={recording.cancelRecording}
             recordedAudioUrl={recording.recordedAudioUrl} setRecordedAudioUrl={recording.setRecordedAudioUrl}
             recordingTime={recording.recordingTime} handleSendAudio={async () => { const sent = await state.handleSendAudio(recording.audioBlob); if (sent) { recording.setAudioBlob(null); recording.setRecordedAudioUrl(null); } }}

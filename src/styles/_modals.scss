@@ -134,6 +134,421 @@
   }
 }
 
+.editorOverlay {
+  z-index: 999999 !important;
+  box-sizing: border-box;
+  padding: 12px;
+  background: rgba(3, 7, 12, 0.94) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.modalCard.imageEditorCard {
+  width: min(1000px, calc(100vw - 24px)) !important;
+  max-width: 1000px !important;
+  height: min(880px, calc(100dvh - 24px));
+  max-height: calc(100dvh - 24px) !important;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 14px;
+  scale: 1 !important;
+  transform: none !important;
+}
+
+.editorHeader {
+  min-height: 54px;
+  padding: 6px 14px;
+  display: grid;
+  grid-template-columns: 44px 1fr 56px;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+  h2 {
+    margin: 0;
+    color: #f8fafc;
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+  }
+}
+
+.editorCloseButton,
+.editorResetButton,
+.editorDiscardButton,
+.editorSendButton,
+.editorToolButton,
+.editorApplyCrop {
+  min-height: 42px;
+  border: 0;
+  border-radius: 8px;
+  color: #f8fafc;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.editorCloseButton,
+.editorResetButton {
+  background: transparent;
+  color: #cbd5e1;
+}
+
+.editorCloseButton {
+  width: 42px;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.editorResetButton {
+  justify-self: end;
+  padding: 0 8px;
+  font-size: 13px;
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+}
+
+.editorStage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 160px;
+  margin: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: #080b10;
+}
+
+.editorCanvas {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  background: #050608;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: crosshair;
+}
+
+.editorCropOverlay {
+  position: absolute;
+  z-index: 1;
+  display: none;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 120vmax rgba(0, 0, 0, 0.62);
+  pointer-events: none;
+}
+
+.editorEmptyState {
+  max-width: 360px;
+  padding: 24px;
+  color: #cbd5e1;
+  text-align: center;
+
+  p {
+    margin: 0 0 16px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+}
+
+.cameraCaptureStage {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.cameraCaptureVideo {
+  display: block;
+  width: min(100%, 760px);
+  max-height: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #050608;
+  transform: scaleX(-1);
+}
+
+.cameraCaptureStatus {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 14px;
+  text-align: center;
+}
+
+.editorToolbar {
+  flex: 0 0 auto;
+  margin: 0 12px 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: #11161c;
+}
+
+.editorTools,
+.editorHistoryControls,
+.editorBrushControls,
+.editorColors {
+  display: flex;
+  align-items: center;
+}
+
+.editorTools {
+  gap: 6px;
+}
+
+.editorToolButton {
+  min-width: 42px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  background: transparent;
+  color: #cbd5e1;
+  transition: background-color 120ms ease, color 120ms ease;
+
+  svg {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    fill: currentColor;
+  }
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+}
+
+.editorToolActive {
+  background: rgba(20, 184, 166, 0.2);
+  color: #5eead4;
+}
+
+.editorHistoryControls {
+  gap: 4px;
+  margin-left: auto;
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.editorApplyCrop {
+  padding: 0 12px;
+  background: #0f766e;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.editorBrushControls {
+  gap: 14px;
+  min-height: 38px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.editorColors {
+  gap: 8px;
+}
+
+.editorColorSwatch {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  border-radius: 50%;
+  background: var(--swatch-color);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.editorColorSelected {
+  outline: 2px solid #5eead4;
+  outline-offset: 2px;
+}
+
+.editorBrushSize {
+  min-width: 120px;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #cbd5e1;
+  font-size: 12px;
+
+  input {
+    width: min(180px, 24vw);
+    accent-color: #2dd4bf;
+  }
+}
+
+.editorFooter {
+  flex: 0 0 auto;
+  padding: 10px 14px 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.editorDiscardButton {
+  padding: 0 18px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e2e8f0;
+}
+
+.editorSendButton {
+  min-width: 130px;
+  padding: 0 20px;
+  background: #0f9f91;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.editorSendButton:hover,
+.editorApplyCrop:hover {
+  filter: brightness(1.08);
+}
+
+.sendError {
+  max-width: 900px;
+  margin: 0 auto 6px;
+  padding: 6px 10px;
+  color: #fecaca;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+@media (max-width: 600px) {
+  .editorOverlay {
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    padding: 0;
+  }
+
+  .modalCard.imageEditorCard {
+    width: 100vw !important;
+    height: 100dvh;
+    max-height: 100dvh !important;
+    border: 0 !important;
+    border-radius: 0;
+    padding-top: env(safe-area-inset-top) !important;
+    padding-bottom: env(safe-area-inset-bottom) !important;
+  }
+
+  .editorHeader {
+    min-height: 50px;
+    padding: 4px 10px;
+    grid-template-columns: 42px 1fr 52px;
+
+    h2 {
+      font-size: 15px;
+    }
+  }
+
+  .editorStage {
+    min-height: 0;
+    margin: 6px 8px;
+    border-radius: 8px;
+  }
+
+  .cameraCaptureStage {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .cameraCaptureVideo {
+    max-height: 100%;
+  }
+
+  .editorToolbar {
+    margin: 0 8px 6px;
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .editorTools {
+    gap: 3px;
+  }
+
+  .editorToolButton {
+    min-width: 40px;
+    min-height: 42px;
+    padding: 0 8px;
+
+    span {
+      font-size: 12px;
+    }
+  }
+
+  .editorHistoryControls {
+    gap: 2px;
+    padding-left: 4px;
+  }
+
+  .editorBrushControls {
+    justify-content: space-between;
+    gap: 8px;
+    padding-top: 7px;
+  }
+
+  .editorColors {
+    gap: 7px;
+  }
+
+  .editorColorSwatch {
+    width: 25px;
+    height: 25px;
+  }
+
+  .editorBrushSize {
+    min-width: 0;
+    gap: 6px;
+
+    span {
+      white-space: nowrap;
+      font-size: 11px;
+    }
+
+    input {
+      width: clamp(72px, 24vw, 96px);
+    }
+  }
+
+  .editorFooter {
+    padding: 8px 10px max(10px, env(safe-area-inset-bottom));
+  }
+
+  .editorDiscardButton,
+  .editorSendButton {
+    min-height: 46px;
+  }
+
+}
+
 .screenCaptureModal {
   position: fixed;
   top: 0;

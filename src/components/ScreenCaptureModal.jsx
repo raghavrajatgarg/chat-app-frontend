@@ -1,462 +1,504 @@
-import React, { useRef, useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import styles from '../styles/App.module.scss';
+
+const MAX_EDITOR_EDGE = 2560;
+const MAX_HISTORY_STEPS = 12;
+
+function drawImageToCanvas(canvas, image) {
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+  const scale = Math.min(1, MAX_EDITOR_EDGE / Math.max(sourceWidth, sourceHeight));
+  canvas.width = Math.round(sourceWidth * scale);
+  canvas.height = Math.round(sourceHeight * scale);
+  canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+  return { data: canvas.toDataURL(), width: canvas.width, height: canvas.height };
+}
 
 export default function ScreenCaptureModal({ isOpen, onClose, onSaveScreenshot, captureType = 'screen', selectedImage = null }) {
   const canvasRef = useRef(null);
+  const cameraVideoRef = useRef(null);
+  const cameraStreamRef = useRef(null);
+  const cropOverlayRef = useRef(null);
+  const drawingRef = useRef(false);
+  const selectingCropRef = useRef(false);
+  const cropStartRef = useRef(null);
+  const cropEndRef = useRef(null);
+  const historyRef = useRef([]);
+  const historyIndexRef = useRef(-1);
+  const isRestoringHistoryRef = useRef(false);
   const [hasCaptured, setHasCaptured] = useState(false);
   const [editMode, setEditMode] = useState('draw');
   const [brushColor, setBrushColor] = useState('#ef4444');
   const [brushSize, setBrushSize] = useState(5);
-
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [cropStart, setCropStart] = useState(null);
-  const [cropEnd, setCropEnd] = useState(null);
-  const [isSelectingCrop, setIsSelectingCrop] = useState(false);
-
+  const [hasCropSelection, setHasCropSelection] = useState(false);
   const [originalImage, setOriginalImage] = useState(null);
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [isRestoringHistory, setIsRestoringHistory] = useState(false);
+  const [captureError, setCaptureError] = useState('');
+  const [cameraReady, setCameraReady] = useState(false);
 
-  // 1. MOBILE CAMERA SYNC PIPELINE HOOK
   useEffect(() => {
-    if (isOpen && captureType === 'camera' && selectedImage && !hasCaptured) {
-      const timer = setTimeout(() => {
+    if (!isOpen || captureType !== 'camera' || !selectedImage || hasCaptured) return undefined;
+    let cancelled = false;
+    const image = new Image();
+    image.onload = () => {
+      if (cancelled || !canvasRef.current) return;
+      try {
         const canvas = canvasRef.current;
-        if (!canvas) {
-          console.error("❌ [TRACE CRITICAL ERROR] canvasRef.current is NULL or UNMOUNTED! The canvas node is unreachable in the current render pass layout.");
-          return;
-        }
-
-        const ctx = canvas.getContext('2d');
-        const imgInstance = new Image();
-        imgInstance.src = selectedImage;
-
-        imgInstance.onload = () => {
-          canvas.width = imgInstance.naturalWidth || imgInstance.width;
-          canvas.height = imgInstance.naturalHeight || imgInstance.height;
-
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(imgInstance, 0, 0);
-          setOriginalImage(imgInstance);
-          setHistory([imgInstance]);
-          setHistoryIndex(0);
-
-          setHasCaptured(true);
-        };
-
-        imgInstance.onerror = (imgErr) => {
-          console.error("💥 [TRACE EXCEPTION] Virtual Image serialization rendering failed to load the base64 matrix stack:", imgErr);
-        };
-      }, 150);
-
-      return () => {
-        clearTimeout(timer);
-      };
-    }
+        const originalDataUrl = drawImageToCanvas(canvas, image);
+        setOriginalImage(originalDataUrl);
+        const initialHistory = [originalDataUrl];
+        historyRef.current = initialHistory;
+        historyIndexRef.current = 0;
+        setHistory(initialHistory);
+        setHistoryIndex(0);
+        setCaptureError('');
+        setHasCaptured(true);
+      } catch (error) {
+        console.error('Could not prepare this image for editing:', error);
+        setCaptureError('This image host blocks canvas editing. Download the image and upload it again to edit.');
+      }
+    };
+    image.onerror = () => setCaptureError('This image could not be loaded. Check your connection or choose another photo.');
+    image.crossOrigin = 'anonymous';
+    setCaptureError('');
+    image.src = selectedImage;
+    return () => {
+      cancelled = true;
+      image.onload = null;
+    };
   }, [isOpen, captureType, selectedImage, hasCaptured]);
 
-  // 2. DISMISS CLEANUP ROUTINE HOOK
   useEffect(() => {
-    if (!isOpen) {
-      setHasCaptured(false);
-      setOriginalImage(null);
-      setHistory([]);
-      setHistoryIndex(-1);
-    }
-  }, [isOpen]);
+    if (!isOpen || captureType !== 'camera' || selectedImage || hasCaptured) return undefined;
+    let cancelled = false;
 
-  // HOOK LAWS EXPLICIT ESCAPE ENFORCEMENT LAYER
-  if (!isOpen) {
-    return null;
-  }
-
-  const saveToHistory = (canvasElement) => {
-    const dataUrl = canvasElement.toDataURL();
-    const img = new Image();
-    img.src = dataUrl;
-    img.onload = () => {
-      const cleanHistory = history.slice(0, historyIndex + 1);
-      const updatedHistory = [...cleanHistory, img];
-      setHistory(updatedHistory);
-      setHistoryIndex(updatedHistory.length - 1);
+    const startCamera = async () => {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setCaptureError('Camera access is not available in this browser. Use Upload Photo instead.');
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: 'user' },
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        cameraStreamRef.current = stream;
+        if (cameraVideoRef.current) {
+          cameraVideoRef.current.srcObject = stream;
+          await cameraVideoRef.current.play();
+          setCameraReady(true);
+          setCaptureError('');
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setCaptureError(error?.name === 'NotAllowedError'
+            ? 'Allow camera access in your browser to take a photo.'
+            : 'Could not open a camera. Check that one is connected and available.');
+        }
+      }
     };
+
+    startCamera();
+    return () => {
+      cancelled = true;
+      cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+      cameraStreamRef.current = null;
+      setCameraReady(false);
+    };
+  }, [isOpen, captureType, selectedImage, hasCaptured]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onClose(true);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
+  const commitHistory = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const nextHistory = [...historyRef.current.slice(0, historyIndexRef.current + 1), {
+      data: canvas.toDataURL(),
+      width: canvas.width,
+      height: canvas.height,
+    }].slice(-MAX_HISTORY_STEPS);
+    historyRef.current = nextHistory;
+    historyIndexRef.current = nextHistory.length - 1;
+    setHistory(nextHistory);
+    setHistoryIndex(nextHistory.length - 1);
+  };
+
+  const commitNewImage = (image) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const originalDataUrl = drawImageToCanvas(canvas, image);
+    setOriginalImage(originalDataUrl);
+    const initialHistory = [originalDataUrl];
+    historyRef.current = initialHistory;
+    historyIndexRef.current = 0;
+    setHistory(initialHistory);
+    setHistoryIndex(0);
+    setCaptureError('');
+    setHasCaptured(true);
   };
 
   const handleCapture = async () => {
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      setCaptureError('Screen capture is not available in this browser.');
+      return;
+    }
+    let stream;
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { displaySurface: "monitor" },
-        audio: false
-      });
-
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: 'monitor' }, audio: false });
       const video = document.createElement('video');
       video.srcObject = stream;
-      video.autoplay = true;
       video.muted = true;
       video.playsInline = true;
-
-      video.onloadedmetadata = () => {
-        setTimeout(() => {
-          const canvas = canvasRef.current;
-          if (canvas) {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            const imgInstance = new Image();
-            imgInstance.src = canvas.toDataURL('image/png');
-            imgInstance.onload = () => {
-              setOriginalImage(imgInstance);
-              setHistory([imgInstance]);
-              setHistoryIndex(0);
-              setHasCaptured(true);
-            };
-          }
-          stream.getTracks().forEach(track => {
-            track.stop();
-          });
-        }, 150);
-      };
+      await new Promise((resolve, reject) => {
+        video.onloadedmetadata = resolve;
+        video.onerror = reject;
+      });
       await video.play();
-    } catch (err) {
-      console.error("💥 [TRACE CAPTURE ERROR] Desktop window picker process failed:", err);
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+      const image = new Image();
+      image.onload = () => commitNewImage(image);
+      image.src = canvas.toDataURL('image/png');
+    } catch (error) {
+      setCaptureError(error?.name === 'NotAllowedError' ? 'Screen sharing was cancelled.' : 'Could not capture this screen. Please try again.');
+    } finally {
+      stream?.getTracks().forEach((track) => track.stop());
     }
   };
 
-  const getCanvasCoords = (e) => {
+  const captureCameraFrame = () => {
+    const video = cameraVideoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) return;
+    const frame = document.createElement('canvas');
+    frame.width = video.videoWidth;
+    frame.height = video.videoHeight;
+    frame.getContext('2d').drawImage(video, 0, 0, frame.width, frame.height);
+    const image = new Image();
+    image.onload = () => {
+      cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
+      cameraStreamRef.current = null;
+      setCameraReady(false);
+      commitNewImage(image);
+    };
+    image.onerror = () => setCaptureError('Could not capture this frame. Please try again.');
+    image.src = frame.toDataURL('image/jpeg', 0.92);
+  };
+
+  const getCanvasCoords = (event) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
-    const clientX = e.clientX || (e.touches && e.touches[0]?.clientX);
-    const clientY = e.clientY || (e.touches && e.touches[0]?.clientY);
     return {
-      x: ((clientX - rect.left) / rect.width) * canvas.width,
-      y: ((clientY - rect.top) / rect.height) * canvas.height
+      x: Math.max(0, Math.min(canvas.width, ((event.clientX - rect.left) / rect.width) * canvas.width)),
+      y: Math.max(0, Math.min(canvas.height, ((event.clientY - rect.top) / rect.height) * canvas.height))
     };
   };
 
-  const handleMouseDown = (e) => {
-    if (!hasCaptured) return;
-    const { x, y } = getCanvasCoords(e);
+  const updateCropOverlay = (start, end) => {
+    const canvas = canvasRef.current;
+    const overlay = cropOverlayRef.current;
+    const stage = canvas?.parentElement;
+    if (!canvas || !overlay || !stage || !start || !end) return;
+    const canvasRect = canvas.getBoundingClientRect();
+    const stageRect = stage.getBoundingClientRect();
+    const left = canvasRect.left - stageRect.left + (Math.min(start.x, end.x) / canvas.width) * canvasRect.width;
+    const top = canvasRect.top - stageRect.top + (Math.min(start.y, end.y) / canvas.height) * canvasRect.height;
+    const width = (Math.abs(start.x - end.x) / canvas.width) * canvasRect.width;
+    const height = (Math.abs(start.y - end.y) / canvas.height) * canvasRect.height;
+    Object.assign(overlay.style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px`, display: 'block' });
+  };
 
+  const handlePointerDown = (event) => {
+    if (!hasCaptured || isRestoringHistoryRef.current) return;
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const point = getCanvasCoords(event);
     if (editMode === 'draw') {
       const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.strokeStyle = brushColor;
-      ctx.lineWidth = brushSize;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      setIsDrawing(true);
-    } else if (editMode === 'crop') {
-      setCropStart({ x, y });
-      setCropEnd({ x, y });
-      setIsSelectingCrop(true);
+      const context = canvas.getContext('2d');
+      context.beginPath();
+      context.moveTo(point.x, point.y);
+      context.strokeStyle = brushColor;
+      context.lineWidth = brushSize * (canvas.width / canvas.getBoundingClientRect().width);
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      drawingRef.current = true;
+    } else {
+      cropStartRef.current = point;
+      cropEndRef.current = point;
+      selectingCropRef.current = true;
+      setHasCropSelection(false);
     }
   };
 
-  const handleMouseMove = (e) => {
-    if (!hasCaptured || isSelectingCrop === false && isDrawing === false) return;
-    const { x, y } = getCanvasCoords(e);
-
-    if (editMode === 'draw' && isDrawing) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      ctx.lineTo(x, y);
-      ctx.stroke();
-    } else if (editMode === 'crop' && isSelectingCrop) {
-      setCropEnd({ x, y });
-      drawCropOverlay(x, y);
+  const handlePointerMove = (event) => {
+    if (!hasCaptured || (!drawingRef.current && !selectingCropRef.current)) return;
+    const pointerEvents = event.nativeEvent.getCoalescedEvents?.() || [event.nativeEvent];
+    for (const pointerEvent of pointerEvents) {
+      const point = getCanvasCoords(pointerEvent);
+      if (drawingRef.current) {
+        const context = canvasRef.current.getContext('2d');
+        context.lineTo(point.x, point.y);
+        context.stroke();
+      } else if (selectingCropRef.current) {
+        cropEndRef.current = point;
+        updateCropOverlay(cropStartRef.current, point);
+      }
     }
   };
 
-  const handleMouseUp = () => {
-    if (editMode === 'draw' && isDrawing) {
-      setIsDrawing(false);
-      saveToHistory(canvasRef.current);
-    } else if (editMode === 'crop') {
-      setIsSelectingCrop(false);
+  const handlePointerEnd = () => {
+    if (drawingRef.current) {
+      drawingRef.current = false;
+      commitHistory();
+    }
+    if (selectingCropRef.current) {
+      selectingCropRef.current = false;
+      const start = cropStartRef.current;
+      const end = cropEndRef.current;
+      const hasArea = start && end && Math.abs(end.x - start.x) >= 10 && Math.abs(end.y - start.y) >= 10;
+      setHasCropSelection(Boolean(hasArea));
+      if (!hasArea && cropOverlayRef.current) cropOverlayRef.current.style.display = 'none';
     }
   };
-  // 📥 Custom handler to download the active edited canvas state locally to disk
-  const handleDownloadCanvasAsset = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
 
-    // Convert the current canvas drawing/crop state into a high-quality JPEG
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-
-    // Create an invisible virtual anchor tag link element
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.href = dataUrl;
-    downloadAnchor.download = `studio-edit-${Date.now()}.jpg`; // Timestamps file name
-
-    // Mount, trigger click handshake, and discard the virtual node immediately
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    document.body.removeChild(downloadAnchor);
+  const clearCropSelection = () => {
+    cropStartRef.current = null;
+    cropEndRef.current = null;
+    setHasCropSelection(false);
+    if (cropOverlayRef.current) cropOverlayRef.current.style.display = 'none';
   };
 
-  const drawCropOverlay = (currentX, currentY) => {
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!canvas || !originalImage || !cropStart) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(originalImage, 0, 0);
-    const x = Math.min(cropStart.x, currentX);
-    const y = Math.min(cropStart.y, currentY);
-    const w = Math.abs(cropStart.x - currentX);
-    const h = Math.abs(cropStart.y - currentY);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.clearRect(x, y, w, h);
-    ctx.drawImage(originalImage, x, y, w, h, x, y, w, h);
-    ctx.strokeStyle = '#3b82f6';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, w, h);
-  };
   const applyCrop = () => {
-    if (!cropStart || !cropEnd) return;
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-
-    const x = Math.min(cropStart.x, cropEnd.x);
-    const y = Math.min(cropStart.y, cropEnd.y);
-    const w = Math.abs(cropStart.x - cropEnd.x);
-    const h = Math.abs(cropStart.y - cropEnd.y);
-
-    if (w < 10 || h < 10) return;
-
-    const bufferCanvas = document.createElement('canvas');
-    bufferCanvas.width = w;
-    bufferCanvas.height = h;
-    const bufferCtx = bufferCanvas.getContext('2d');
-    bufferCtx.drawImage(canvas, x, y, w, h, 0, 0, w, h);
-
-    canvas.width = w;
-    canvas.height = h;
-    ctx.clearRect(0, 0, w, h);
-    ctx.drawImage(bufferCanvas, 0, 0);
-
-    saveToHistory(canvas);
-    setCropStart(null);
-    setCropEnd(null);
+    const start = cropStartRef.current;
+    const end = cropEndRef.current;
+    if (!canvas || !start || !end) return;
+    const x = Math.round(Math.min(start.x, end.x));
+    const y = Math.round(Math.min(start.y, end.y));
+    const width = Math.round(Math.abs(start.x - end.x));
+    const height = Math.round(Math.abs(start.y - end.y));
+    if (width < 10 || height < 10) return;
+    const buffer = document.createElement('canvas');
+    buffer.width = width;
+    buffer.height = height;
+    buffer.getContext('2d').drawImage(canvas, x, y, width, height, 0, 0, width, height);
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(buffer, 0, 0);
+    commitHistory();
+    clearCropSelection();
     setEditMode('draw');
   };
 
-  const handleUndo = () => {
-    if (historyIndex > 0) {
-      const prevIndex = historyIndex - 1;
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      const targetImg = history[prevIndex];
-
-      canvas.width = targetImg.naturalWidth || targetImg.width;
-      canvas.height = targetImg.naturalHeight || targetImg.height;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(targetImg, 0, 0);
-      setHistoryIndex(prevIndex);
-    }
-  };
-
-  const handleRedo = () => {
-    if (historyIndex < history.length - 1) {
-      const nextIndex = historyIndex + 1;
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      const targetImg = history[nextIndex];
-
-      canvas.width = targetImg.naturalWidth || targetImg.width;
-      canvas.height = targetImg.naturalHeight || targetImg.height;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(targetImg, 0, 0);
-      setHistoryIndex(nextIndex);
-    }
-  };
-
-  const handleFinalExportAndSend = () => {
+  const rotateCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const finalCompressedBase64 = canvas.toDataURL('image/jpeg', 0.75);
-    onSaveScreenshot(finalCompressedBase64);
-    onClose();
+    const rotated = document.createElement('canvas');
+    rotated.width = canvas.height;
+    rotated.height = canvas.width;
+    const context = rotated.getContext('2d');
+    context.translate(rotated.width, 0);
+    context.rotate(Math.PI / 2);
+    context.drawImage(canvas, 0, 0);
+    canvas.width = rotated.width;
+    canvas.height = rotated.height;
+    canvas.getContext('2d').drawImage(rotated, 0, 0);
+    commitHistory();
+    clearCropSelection();
+    setEditMode('draw');
+  };
+
+  const restoreHistory = async (nextIndex) => {
+    const canvas = canvasRef.current;
+    if (!canvas || isRestoringHistoryRef.current || !historyRef.current[nextIndex]) return;
+    isRestoringHistoryRef.current = true;
+    setIsRestoringHistory(true);
+    const image = new Image();
+    const snapshot = historyRef.current[nextIndex];
+    try {
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = reject;
+        image.src = snapshot.data;
+      });
+      canvas.width = snapshot.width;
+      canvas.height = snapshot.height;
+      canvas.getContext('2d').drawImage(image, 0, 0);
+      historyIndexRef.current = nextIndex;
+      setHistoryIndex(nextIndex);
+      clearCropSelection();
+    } catch (error) {
+      console.error('Could not restore image history:', error);
+    } finally {
+      isRestoringHistoryRef.current = false;
+      setIsRestoringHistory(false);
+    };
   };
 
   const resetCanvasEdits = () => {
+    if (!originalImage || !canvasRef.current) return;
     const canvas = canvasRef.current;
-    if (canvas && originalImage) {
-      canvas.width = originalImage.naturalWidth || originalImage.width;
-      canvas.height = originalImage.naturalHeight || originalImage.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(originalImage, 0, 0);
-      setHistory([originalImage]);
+    const image = new Image();
+    image.onload = () => {
+      canvas.width = originalImage.width;
+      canvas.height = originalImage.height;
+      canvas.getContext('2d').drawImage(image, 0, 0);
+      const initialHistory = [originalImage];
+      historyRef.current = initialHistory;
+      historyIndexRef.current = 0;
+      setHistory(initialHistory);
       setHistoryIndex(0);
-      setCropStart(null);
-      setCropEnd(null);
-    }
+    };
+    image.src = originalImage.data;
+    clearCropSelection();
+    setEditMode('draw');
   };
+
+  const downloadEditedImage = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/jpeg', 0.9);
+    link.download = `edited-photo-${Date.now()}.jpg`;
+    link.click();
+  };
+
+  const handleSend = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    onSaveScreenshot(canvas.toDataURL('image/jpeg', 0.88));
+    onClose(false);
+  };
+
+  const handleDiscard = () => onClose(true);
+
+  if (!isOpen) return null;
+
   return (
-    <div className={styles.modalOverlay} style={{ zIndex: 999999999999 }}>
-      <div className={styles.modalCard} style={{ maxWidth: '1000px', width: '95%', padding: '16px', maxHeight: '95dvh', display: 'flex', flexDirection: 'column' }}>
+    <div className={`${styles.modalOverlay} ${styles.editorOverlay}`}>
+      <div className={`${styles.modalCard} ${styles.imageEditorCard}`} role="dialog" aria-modal="true" aria-label="Photo editor">
+        <header className={styles.editorHeader}>
+          <button type="button" onClick={handleDiscard} className={styles.editorCloseButton} aria-label="Discard and close editor">×</button>
+          <h2>{captureType === 'screen' ? 'Screenshot editor' : 'Edit photo'}</h2>
+          <button type="button" onClick={resetCanvasEdits} className={styles.editorResetButton} disabled={!hasCaptured}>Reset</button>
+        </header>
 
-        {/* Header Title Block */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', flexShrink: 0 }}>
-          <h3 style={{ margin: 0, color: '#fff', fontSize: '16px' }}>Screenshot Editor</h3>
-          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '24px', cursor: 'pointer' }}>×</button>
-        </div>
-
-        {/* Dynamic Studio Canvas Render Target Element Frame */}
-        <div style={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifycontent: 'center', margin: '10px 0', overflow: 'hidden', background: '#020408', borderRadius: '10px', padding: '5px' }}>
+        <div className={styles.editorStage}>
           <canvas
             ref={canvasRef}
-            onPointerDown={handleMouseDown}
-            onPointerMove={handleMouseMove}
-            onPointerUp={handleMouseUp}
-            onPointerLeave={handleMouseUp}
-            style={{
-              display: hasCaptured ? 'block' : 'none',
-              maxWidth: '100%',
-              maxHeight: '50vh',
-              objectFit: 'contain',
-              boxShadow: '0 12px 36px rgba(0,0,0,0.6)',
-              background: '#000',
-              touchAction: 'none'
-            }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerEnd}
+            onPointerCancel={handlePointerEnd}
+            className={styles.editorCanvas}
+            style={{ display: hasCaptured ? 'block' : 'none' }}
+            aria-label="Image editing surface"
           />
-
-          {/* Replace your old !hasCaptured section with this clean block layout */}
-          {!hasCaptured && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '15px', padding: '40px 0', width: '100%' }}>
-              <p className={styles.modalSubtext} style={{ textAlign: 'center', maxWidth: '440px', color: 'var(--text-muted)', fontSize: '13px' }}>
-                Select a screen, application dashboard, or individual browser tab to snip and edit.
-              </p>
-
-              {/* CLEAN FIX: One clean button that handles the mode dynamically */}
-              <button type="button" className={styles.sendBtn} onClick={handleCapture} style={{ background: 'var(--accent-blue)', margin: '0 auto', fontSize: '14px' }}>
-                {captureType === 'camera' ? 'Launch Camera Feed' : 'Open Window Picker'}
-              </button>
-            </div>
-          )}
-
-        </div>
-
-        {/* RESPONSIVE CONTROL PANEL GRID */}
-        {hasCaptured && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', background: '#090d16', padding: '10px', borderRadius: '10px', border: '1px solid var(--border-color)', flexShrink: 0 }}>
-
-            {/* Top Toolbar Row: Mode selection and utilities */}
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
-              <button
-                type="button"
-                className={`${styles.roomBtn} ${editMode === 'draw' ? styles.roomBtnActive : ''}`}
-                onClick={() => setEditMode('draw')}
-                style={{ padding: '6px 10px', fontSize: '12px' }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-pen" viewBox="0 0 16 16">
-                  <path d="m13.498.795.149-.149a1.207 1.207 0 1 1 1.707 1.708l-.149.148a1.5 1.5 0 0 1-.059 2.059L4.854 14.854a.5.5 0 0 1-.233.131l-4 1a.5.5 0 0 1-.606-.606l1-4a.5.5 0 0 1 .131-.232l9.642-9.642a.5.5 0 0 0-.642.056L6.854 4.854a.5.5 0 1 1-.708-.708L9.44.854A1.5 1.5 0 0 1 11.5.796a1.5 1.5 0 0 1 1.998-.001m-.644.766a.5.5 0 0 0-.707 0L1.95 11.756l-.764 3.057 3.057-.764L14.44 3.854a.5.5 0 0 0 0-.708z" />
-                </svg> Draw
-              </button>
-
-              <button
-                type="button"
-                className={`${styles.roomBtn} ${editMode === 'crop' ? styles.roomBtnActive : ''}`}
-                onClick={() => setEditMode('crop')}
-                style={{ padding: '6px 12px', fontSize: '12px' }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-aspect-ratio" viewBox="0 0 16 16">
-                  <path d="M0 3.5A1.5 1.5 0 0 1 1.5 2h13A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 12.5zM1.5 3a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5z" />
-                  <path d="M2 4.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1H3v2.5a.5.5 0 0 1-1 0zm12 7a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1H13V8.5a.5.5 0 0 1 1 0z" />
-                </svg> Crop
-              </button>
-              <button
-                type="button"
-                onClick={handleDownloadCanvasAsset}
-                className={styles.roomBtn}
-                style={{ padding: '6px 12px', fontSize: '12px' }}
-                title="Download edited image to your device"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download" viewBox="0 0 16 16">
-                  <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5" />
-                  <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z" />
-                </svg>
-                Download
-              </button>
-
-              {editMode === 'crop' && cropStart && cropEnd && (
-                <button
-                  type="button"
-                  className={styles.sendBtn}
-                  onClick={applyCrop}
-                  style={{ background: 'var(--accent-emerald)', padding: '6px 10px', fontSize: '12px', fontWeight: 600 }}
-                >
-                  Apply Crop
+          {!hasCaptured && captureType === 'camera' && !selectedImage && (
+            <div className={styles.cameraCaptureStage}>
+              <video
+                ref={cameraVideoRef}
+                className={styles.cameraCaptureVideo}
+                playsInline
+                muted
+                autoPlay
+                aria-label="Live camera preview"
+              />
+              {!cameraReady && <p className={styles.cameraCaptureStatus}>{captureError || 'Starting camera…'}</p>}
+              {cameraReady && (
+                <button type="button" className={styles.editorSendButton} onClick={captureCameraFrame}>
+                  Take photo
                 </button>
               )}
+            </div>
+          )}
+          <div ref={cropOverlayRef} className={styles.editorCropOverlay} />
+          {!hasCaptured && !(captureType === 'camera' && !selectedImage) && (
+            <div className={styles.editorEmptyState}>
+              <p role={captureError ? 'alert' : 'status'}>
+                {captureError || (captureType === 'camera' ? 'Loading photo…' : 'Choose a screen or window to capture.')}
+              </p>
+              {captureType === 'screen' && <button type="button" className={styles.editorSendButton} onClick={handleCapture}>Choose screen</button>}
+            </div>
+          )}
+        </div>
 
-              {/* Undo, Redo, and Reset Alignment Segment */}
-              <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto' }}>
-                <button type="button" onClick={handleUndo} disabled={historyIndex <= 0} className={styles.roomBtn} style={{ padding: '6px 10px', fontSize: '12px', opacity: historyIndex <= 0 ? 0.3 : 1 }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-counterclockwise" viewBox="0 0 16 16">
-                    <path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z" />
-                    <path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466" />
-                  </svg> Undo
+        {hasCaptured && (
+          <section className={styles.editorToolbar} aria-label="Image editing controls">
+            <div className={styles.editorTools} role="toolbar" aria-label="Editing tools">
+              <button type="button" className={`${styles.editorToolButton} ${editMode === 'draw' ? styles.editorToolActive : ''}`} onClick={() => setEditMode('draw')} disabled={isRestoringHistory} aria-pressed={editMode === 'draw'} title="Draw">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pen" viewBox="0 0 16 16">
+  <path d="m13.498.795.149-.149a1.207 1.207 0 1 1 1.707 1.708l-.149.148a1.5 1.5 0 0 1-.059 2.059L4.854 14.854a.5.5 0 0 1-.233.131l-4 1a.5.5 0 0 1-.606-.606l1-4a.5.5 0 0 1 .131-.232l9.642-9.642a.5.5 0 0 0-.642.056L6.854 4.854a.5.5 0 1 1-.708-.708L9.44.854A1.5 1.5 0 0 1 11.5.796a1.5 1.5 0 0 1 1.998-.001m-.644.766a.5.5 0 0 0-.707 0L1.95 11.756l-.764 3.057 3.057-.764L14.44 3.854a.5.5 0 0 0 0-.708z"/>
+</svg>
+                <span>Draw</span>
+              </button>
+              <button type="button" className={`${styles.editorToolButton} ${editMode === 'crop' ? styles.editorToolActive : ''}`} onClick={() => { setEditMode('crop'); clearCropSelection(); }} disabled={isRestoringHistory} aria-pressed={editMode === 'crop'} title="Crop">
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-aspect-ratio" viewBox="0 0 16 16">
+  <path d="M0 3.5A1.5 1.5 0 0 1 1.5 2h13A1.5 1.5 0 0 1 16 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 0 12.5zM1.5 3a.5.5 0 0 0-.5.5v9a.5.5 0 0 0 .5.5h13a.5.5 0 0 0 .5-.5v-9a.5.5 0 0 0-.5-.5z"/>
+  <path d="M2 4.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1H3v2.5a.5.5 0 0 1-1 0zm12 7a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1H13V8.5a.5.5 0 0 1 1 0z"/>
+</svg>                <span>Crop</span>
+              </button>
+              <button type="button" className={styles.editorToolButton} onClick={rotateCanvas} disabled={isRestoringHistory} title="Rotate 90 degrees" aria-label="Rotate 90 degrees">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640"><path d="M544.1 256L552 256C565.3 256 576 245.3 576 232L576 88C576 78.3 570.2 69.5 561.2 65.8C552.2 62.1 541.9 64.2 535 71L483.3 122.8C439 86.1 382 64 320 64C191 64 84.3 159.4 66.6 283.5C64.1 301 76.2 317.2 93.7 319.7C111.2 322.2 127.4 310 129.9 292.6C143.2 199.5 223.3 128 320 128C364.4 128 405.2 143 437.7 168.3L391 215C384.1 221.9 382.1 232.2 385.8 241.2C389.5 250.2 398.3 256 408 256L544.1 256zM573.5 356.5C576 339 563.8 322.8 546.4 320.3C529 317.8 512.7 330 510.2 347.4C496.9 440.4 416.8 511.9 320.1 511.9C275.7 511.9 234.9 496.9 202.4 471.6L249 425C255.9 418.1 257.9 407.8 254.2 398.8C250.5 389.8 241.7 384 232 384L88 384C74.7 384 64 394.7 64 408L64 552C64 561.7 69.8 570.5 78.8 574.2C87.8 577.9 98.1 575.8 105 569L156.8 517.2C201 553.9 258 576 320 576C449 576 555.7 480.6 573.4 356.5z"/></svg>
+              </button>
+              <button type="button" className={styles.editorToolButton} onClick={downloadEditedImage} disabled={isRestoringHistory} title="Download edited image" aria-label="Download edited image">
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download" viewBox="0 0 16 16">
+  <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
+  <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
+</svg>              </button>
+              {editMode === 'crop' && hasCropSelection && <button type="button" onClick={applyCrop} className={styles.editorApplyCrop}>Apply crop</button>}
+              <div className={styles.editorHistoryControls}>
+                <button type="button" className={styles.editorToolButton} onClick={() => restoreHistory(historyIndexRef.current - 1)} disabled={historyIndex <= 0 || isRestoringHistory} title="Undo" aria-label="Undo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 152"><path d="M212.333 224.333H12c-6.627 0-12-5.373-12-12V12C0 5.373 5.373 0 12 0h48c6.627 0 12 5.373 12 12v78.112C117.773 39.279 184.26 7.47 258.175 8.007c136.906.994 246.448 111.623 246.157 248.532C504.041 393.258 393.12 504 256.333 504c-64.089 0-122.496-24.313-166.51-64.215-5.099-4.622-5.334-12.554-.467-17.42l33.967-33.967c4.474-4.474 11.662-4.717 16.401-.525C170.76 415.336 211.58 432 256.333 432c97.268 0 176-78.716 176-176 0-97.267-78.716-176-176-176-58.496 0-110.28 28.476-142.274 72.333h98.274c6.627 0 12 5.373 12 12v48c0 6.627-5.373 12-12 12z"/></svg>
                 </button>
-                <button type="button" onClick={handleRedo} disabled={historyIndex >= history.length - 1} className={styles.roomBtn} style={{ padding: '6px 10px', fontSize: '12px', opacity: historyIndex >= history.length - 1 ? 0.3 : 1 }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
-                    <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2z" />
-                    <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466" />
-                  </svg> Redo
-                </button>
-                <button type="button" className={styles.logoutBtn} onClick={resetCanvasEdits} style={{ borderColor: 'rgba(255,255,255,0.1)', color: '#94a3b8', padding: '6px 10px', fontSize: '12px' }}>
-                  Reset
-                </button>
+                <button type="button" className={styles.editorToolButton} onClick={() => restoreHistory(historyIndexRef.current + 1)} disabled={historyIndex >= history.length - 1 || isRestoringHistory} title="Redo" aria-label="Redo">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 152"><path d="M500.33 0h-47.41a12 12 0 0 0-12 12.57l4 82.76A247.42 247.42 0 0 0 256 8C119.34 8 7.9 119.53 8 256.19 8.1 393.07 119.1 504 256 504a247.1 247.1 0 0 0 166.18-63.91 12 12 0 0 0 .48-17.43l-34-34a12 12 0 0 0-16.38-.55A176 176 0 1 1 402.1 157.8l-101.53-4.87a12 12 0 0 0-12.57 12v47.41a12 12 0 0 0 12 12h200.33a12 12 0 0 0 12-12V12a12 12 0 0 0-12-12z"/></svg>                </button>
               </div>
             </div>
 
-            {/* Bottom Toolbar Row: Color palettes and sizing sliders */}
             {editMode === 'draw' && (
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px' }}>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {['#ef4444', '#10b981', '#3b82f6', '#f59e0b', '#ffffff', '#000000'].map((color) => (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => setBrushColor(color)}
-                      style={{
-                        height: '22px',
-                        width: '22px',
-                        background: color,
-                        border: brushColor === color ? '2px solid #fff' : '1px solid rgba(255,255,255,0.2)',
-                        borderRadius: '50%',
-                        cursor: 'pointer'
-                      }}
-                    />
+              <div className={styles.editorBrushControls}>
+                <div className={styles.editorColors} role="group" aria-label="Brush color">
+                  {['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#ffffff', '#111827'].map((color) => (
+                    <button key={color} type="button" onClick={() => setBrushColor(color)} className={`${styles.editorColorSwatch} ${brushColor === color ? styles.editorColorSelected : ''}`} style={{ '--swatch-color': color }} aria-label={`Brush color ${color}`} aria-pressed={brushColor === color} />
                   ))}
                 </div>
-                <input
-                  type="range"
-                  min="2"
-                  max="16"
-                  value={brushSize}
-                  onChange={(e) => setBrushSize(parseInt(e.target.value))}
-                  style={{ flexGrow: 1, minWidth: '70px', accentColor: 'var(--accent-blue)', cursor: 'pointer' }}
-                />
+                <label className={styles.editorBrushSize}>
+                  <span>Brush size</span>
+                  <input type="range" min="2" max="16" value={brushSize} onChange={(event) => setBrushSize(Number(event.target.value))} />
+                </label>
               </div>
             )}
-          </div>
+          </section>
         )}
 
-        {/* MODAL BOTTOM ACTION SUBMIT CONTROLS */}
-        <div style={{ display: 'flex', justifycontent: 'flex-end', gap: '12px', borderTop: '1px solid var(--border-color)', marginTop: '12px', paddingTop: '10px', flexShrink: 0 }}>
-          <button type="button" className={styles.modalCancelBtn} onClick={onClose} style={{ padding: '8px 20px', fontSize: '13px' }}>Discard</button>
-          {hasCaptured && (
-            <button type="button" className={styles.sendBtn} onClick={handleFinalExportAndSend} style={{ background: 'var(--accent-blue)', padding: '8px 24px', fontSize: '13px' }}>
-              Send Snapshot
-            </button>
-          )}
-        </div>
+        <footer className={styles.editorFooter}>
+          <button type="button" className={styles.editorDiscardButton} onClick={handleDiscard}>Discard</button>
+          {hasCaptured && <button type="button" className={styles.editorSendButton} onClick={handleSend}>Use photo</button>}
+        </footer>
       </div>
     </div>
   );

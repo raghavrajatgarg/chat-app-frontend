@@ -114,3 +114,46 @@
   will-change: transform;
 }
 
+.downloadBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #1e90ff;
+  color: white ;
+  border: none ;
+  padding: 6px 14px ;
+  border-radius: 6px ;
+  font-size: 14px ;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.editImgBtn{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap; 
+  background: #00a86b;
+  color: white ;
+  border: none ;
+  padding: 6px 14px ;
+  border-radius: 6px ;
+  font-size: 15px ;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.editImgBtnFlex{
+  white-space: nowrap; 
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.editBtnText{
+    white-space: nowrap; 
+
+}
