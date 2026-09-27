@@ -295,48 +295,43 @@
   visibility: visible;
 }
 
-/* ==========================================================================
-   WhatsApp Centered Reaction Pill (Centered Directly Over Smile Button Anchor)
-   ========================================================================== */
-.dropdownQuickReactions {
+ .dropdownQuickReactions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
+  gap: 4px;            // Reduced gap from 8px to 4px for a tighter look [6]
+  padding: 4px 10px;   // Shrunk vertical padding from 6px to 4px [6]
   position: absolute;
   
-  // 1. POSITIONING MASTER LAYER: Floats perfectly centered above the smiley icon box context
-  bottom: calc(100% + 12px); 
+  // Floating elevation parameters [6]
+  bottom: calc(100% + 10px); 
   left: 50%;
-  transform: translateX(-50%); // Flawless mathematical midpoint centering snap layout grid
+  transform: translateX(-50%); 
   z-index: 10005;
   
   width: max-content;
-  max-width: calc(100vw - 32px); // Edge boundary protection
+  max-width: calc(100vw - 32px); // Edge boundary fallback clip protection [6]
   
-  // WhatsApp Dark premium glassmorphism styling
-  background: #1f2c34; // Exact WhatsApp Dark Mode floating container accent background color
+  // WhatsApp Dark premium glassmorphism styling parameters [6]
+  background: #1f2c34; 
   border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 30px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  border-radius: 24px; // Shrunk radius down from 30px to match smaller scale [6]
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25);
   
-  // Custom center scale pop animation entry curve configuration profile
   animation: waCenteredSmilePop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-
 .quickReactionEmojiBtn {
   background: transparent;
   border: none;
-  font-size: 22px; 
+  font-size: 16px;      // ⚡️ CRITICAL SHRUNK SIZE: Dropped down from 22px to 16px! [6]
   cursor: pointer;
-  padding: 4px;
+  padding: 2px 4px;     // Shrunk background focus bounding box size [6]
   border-radius: 50%;
   line-height: 1;
   user-select: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.2s;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.2s; 
   animation: waEmojiPopUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   
   @for $i from 1 through 7 {
@@ -345,9 +340,14 @@
     }
   }
 
+  // Magnification hover effect profile [6]
   &:hover {
-    transform: scale(1.28) translateY(-4px);
-    background-color: rgba(255, 255, 255, 0.08);
+    transform: scale(1.25) translateY(-2px); // Subtle scale-up that won't clip container edges [6]
+    background-color: rgba(255, 255, 255, 0.08); // [6]
+  }
+
+  &:active {
+    transform: scale(1.05);
   }
 }
 
@@ -412,4 +412,112 @@
 .messageBubbleColumnOther .reactionBadgesRow {
   left: 10px;
   right: auto;
+}
+/* ==========================================================================
+   WhatsApp Centralized Blurred Modal Emoji Picker Panel
+   ========================================================================== */
+
+.centralEmojiModalOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  
+  // 1. WhatsApp Full Backdrop Blur Tint Layer
+  background: rgba(11, 20, 26, 0.7); // Deep dark WhatsApp tint shade overlay color
+  backdrop-filter: blur(8px);       // Premium frosted glassmorphism background blur filter parameters
+  -webkit-backdrop-filter: blur(8px);
+  
+  // 2. Center positioning container flex rules
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20000; // Forces container context above all navigation menus and sidebar cards
+  
+  // Clean fade-in animation rule lookup
+  animation: waFadeInOverlay 0.2s ease-out;
+}
+
+.centralEmojiModalCard {
+  position: relative;
+  width: 340px;
+  max-width: 90%;
+  border-radius: 16px;
+  border-top-right-radius: 1%;
+  border: 2px solid #1f2c34;
+  overflow: hidden;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
+  
+  // Smooth centered scale spring entry layout transition animation mapping vectors
+  animation: waModalSpringPop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  // Enforce specific theme modifications directly onto your emoji picker engine component
+  .EmojiPickerReact {
+    border: 1px solid rgba(255, 255, 255, 0.06) !important;
+    --epr-bg-color: #1f2c34 !important; // Exact WhatsApp Dark panel canvas background color
+    --epr-category-label-bg-color: #111b21 !important;
+    --epr-search-input-bg-color: #2a3942 !important;
+    --epr-search-input-bg-color-active: #2a3942 !important;
+    --epr-border-color: rgba(255, 255, 255, 0.05) !important;
+    --epr-highlight-color: #00a884 !important; // WhatsApp verified teal accent tone
+  }
+}
+.closeEmojiModalBtn {
+  position: absolute;
+  top: -8px;         // Floats slightly off the top edge for a premium app look
+  right: -8px;       // Floats slightly off the right edge
+  width: 28px;
+  height: 28px;
+  border-radius: 10%;
+  
+  // WhatsApp Dark theme match palette colors
+  background: #2a3942; 
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  
+  font-size: 18px;
+  font-weight: bold;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 20020; // Places it cleanly over the library container canvas
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  transition: background-color 0.2s, transform 0.2s;
+
+  &:hover {
+    background: #ff4b4b; // Changes to an active warning red hue on mouse hover
+    transform: scale(1.1);
+    color: #fff;
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+@keyframes waFadeInOverlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes waModalSpringPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.85) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.closeText{
+  margin-bottom: -5px;
+  margin-left: -7px;
 }
