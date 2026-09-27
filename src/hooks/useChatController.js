@@ -111,7 +111,19 @@ export default function useChatController({ callControllerRef, providedSocketRef
         } catch (error) { console.warn('FCM Token skipped:', error); }
         socket.emit('user_connected', { uid: user.uid, name: user.displayName, email: user.email, avatar: user.photoURL, pushSubscription: fcmDeviceToken });
         socket.on('active_users_list', (users) => setActiveUsers(Array.from(new Map(users.map((item) => [item.uid, item])).values())));
-        socket.on('message_updated', (updatedMessage) => setMessages((prev) => prev.map((message) => message._id === updatedMessage._id ? updatedMessage : message)));
+socket.on('message_updated', (updatedMessage) => {
+  // Update main message array history trace context
+  setMessages((prev) => 
+    prev.map((message) => message._id === updatedMessage._id ? updatedMessage : message)
+  );
+  
+  // Also update search result metrics if active to prevent state variable data mutations
+  setSearchResults((prev) => 
+    Array.isArray(prev) 
+      ? prev.map((message) => message._id === updatedMessage._id ? updatedMessage : message) 
+      : []
+  );
+});
         socket.on('message_deleted', (deletedId) => setMessages((prev) => prev.filter((message) => message._id !== deletedId)));
         socket.on('receive_message', (message) => {
           if (message.room !== roomRef.current) return;
@@ -283,7 +295,9 @@ export default function useChatController({ callControllerRef, providedSocketRef
   const isPrivateRoom = room.includes('_');
   const activeHeaderUser = isPrivateRoom ? allRegisteredUsers.find((item) => item.uid === room.split('_').find((id) => id !== user?.uid)) : null;
   const activeHeaderTitle = activeHeaderUser?.name || `# ${room}`;
-  const displayedMessages = searchQuery.trim() ? searchResults : messages;
+const displayedMessages = Array.isArray(searchQuery.trim() ? searchResults : messages) 
+  ? (searchQuery.trim() ? searchResults : messages) 
+  : [];
   const filteredMessages = displayedMessages.filter((message) => !message.parentId && (!searchQuery.trim() || (message.text && message.text.toLowerCase().includes(searchQuery.toLowerCase()))));
   useEffect(() => {
     if (activeConversationId) {
@@ -298,9 +312,16 @@ export default function useChatController({ callControllerRef, providedSocketRef
       [activeConversationId]: text,
     }));
   };
-  const handleToggleReaction = useCallback((messageId, emoji) => {
+// ✅ NEW BULLETPROOF VERSION
+const handleToggleReaction = useCallback((msgId, emoji) => {
   if (!socketRef.current) return;
-  socketRef.current.emit('toggle_reaction', { messageId, emoji });
-}, [socketRef]);  
+  
+  // Explicitly map your component's 'msgId' to the backend's 'messageId' payload parameter key
+  socketRef.current.emit('toggle_reaction', { 
+    messageId: msgId, 
+    emoji: emoji 
+  });
+}, [socketRef]);
+
   return { handleToggleReaction, currentText, handleTextChange, BACKEND_URL, ROOMS_LIST, user, loading, messages, activeUsers, newMessage, room, roomLoading, deleteModalMessageId, setDeleteModalMessageId, isDeleting, setIsDeleting, typingUser, unreadCounts, openMenuId, setOpenMenuId, isMobileMenuOpen, setIsMobileMenuOpen, showScrollBtn, setShowScrollBtn, selectedImage, setSelectedImage, isSendingImage, editingMessageId, setEditingMessageId, editingText, setEditingText, searchQuery, setSearchQuery, allRegisteredUsers, infoModalMessage, setInfoModalMessage, isSettingsOpen, setIsSettingsOpen, isFetchingMore, hasMorePages, activeThreadMessage, setActiveThreadMessage, threadMessages, threadInput, setThreadInput, searchInputRef, fileInputRef, messagesEndRef, socketRef, isPrivateRoom, activeHeaderTitle, activeHeaderUser, activeHeaderAvatar: activeHeaderUser?.avatar || null, isHeaderUserOnline: activeHeaderUser ? activeUsers.some((item) => item.uid === activeHeaderUser.uid) : false, filteredMessages, handleSelectRoom, handleOpenPrivateChat, handleInputChange, handleGoogleLogin, handleEmailLogin, handleResendVerification, refreshUser, handleUpdateDisplayName, handleSendMessage, handleEditMessage, handleSendThreadReply, handleSendAudio, handleImageSelect, handlePaste, loadMoreMessages, highlightText, formatLastSeen, setRoom, sendError };
 }

@@ -173,11 +173,9 @@
   cursor: pointer;
   object-fit: cover;
 }
-
 /* ==========================================
-   Message Reactions Styles (Matched Classes)
+   Message Reactions Styles (Badges)
    ================================---------- */
-
 .reactionBadgesRow {
   display: flex;
   flex-wrap: wrap;
@@ -217,189 +215,153 @@
   }
 }
 
-/* Dropdown quick reaction emojis bar styling */
-.dropdownQuickReactions {
+/* ==========================================================================
+   WhatsApp Symmetrical Side-by-Side Horizontal Row Alignment Fix
+   ========================================================================== */
+
+.messageBubbleColumn {
   display: flex;
-  gap: 4px;
-  padding: 6px 8px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  background-color: rgba(0, 0, 0, 0.02);
-  border-top-left-radius: inherit;
-  border-top-right-radius: inherit;
+  flex-direction: column;
+  position: relative;
+  max-width: 100%;
+}
 
-  .quickReactionEmojiBtn {
-    background: transparent;
-    border: none;
-    font-size: 16px;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 50%;
-    transition: transform 0.15s ease, background-color 0.15s ease;
+// ⚠️ THE ULTIMATE FIX: Forces horizontal row layout flow side-by-side, 
+// overriding any top-level flex constraints pushing items downwards.
+.messageBubbleRowAnchor {
+  display: flex !important;
+  align-items: center !important; // Vertically center aligns smiley icon to bubble side wall
+  position: relative;
+  width: max-content;
+  max-width: 100%;
+}
 
-    &:hover {
-      transform: scale(1.25);
-      background-color: rgba(0, 0, 0, 0.06);
-    }
+// YOUR MESSAGES CORRECTION (Smiley docks on the LEFT side wall of your bubble)
+.messageBubbleRowAnchorMe {
+  flex-direction: row-reverse !important; // Inverts order: smiley on left, bubble on right
+  
+  .reactionToggleContainer {
+    margin-right: 12px; // Clear horizontal visual cushion spacing
+    margin-left: 0;
+  }
+}
+
+// OTHER MESSAGES CORRECTION (Smiley docks on the RIGHT side wall of their bubble)
+.messageBubbleRowAnchorOther {
+  flex-direction: row !important; // Normal order: bubble on left, smiley on right
+  
+  .reactionToggleContainer {
+    margin-left: 12px; // Clear horizontal visual cushion spacing
+    margin-right: 0;
   }
 }
 
 /* ==========================================================================
-   Emoji Toggle Hover Positioning
+   Smiley Trigger Layout Controls
    ========================================================================== */
-
-// 1. Initially hide the toggle button completely
-/* ==========================================================================
-   Emoji Toggle Hover Positioning
-   ========================================================================== */
-
-// 1. Initially hide the toggle button completely
-/* ==========================================================================
-   Emoji Toggle Position Fix (Handles flex-direction reversals)
-   ========================================================================== */
-
-/* ==========================================================================
-   Emoji Toggle Position Fix (Handles flex-direction reversals)
-   ========================================================================== */
-
-/* ==========================================================================
-   Emoji Toggle Breakout (Bypassing Action Trigger Parent Container)
-   ========================================================================== */
+.reactionToggleContainer {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0; // Prevents the flex container grid layer from warping icon dimensions
+}
 
 .emojiToggle {
-  position: absolute;
-  top: 50%;
-  display: inline-block;
-  white-space: nowrap;
-  width: max-content;
   background: transparent;
   border: none;
   cursor: pointer;
+  color: var(--text-subtle, #ffffff);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out, color 0.2s;
-  color: var(--text-subtle, #ffffff);
+  transition: opacity 0.2s ease, visibility 0.2s, color 0.2s;
+  margin: 0 !important;
   
-  &:hover {
-    color: #93c5fd; // Highlight color when hovering the button itself
+  &:hover, &.forceVisible {
+    color: #93c5fd !important;
   }
 }
 
-// 1. Break the bubble container bounds
-.messageBubbleBase {
-  position: relative !important;
-  overflow: visible !important;
+// Reveal smile icon button on parent row hover maps
+.messageRow:hover .emojiToggle,
+.emojiToggle.forceVisible {
+  opacity: 1;
+  visibility: visible;
 }
 
-// 2. FOR YOUR MESSAGES: Break out completely to the left wall of the message bubble
-.messageBubbleMe {
-  .emojiToggle {
-    /* inline style locks parent container to the right, so we use a large negative value 
-       to leap out of the container and past the left side of the chat bubble */
-    right: 100%;
-    left: auto;
-    /* Shifts the element sideways from the parent action trigger box context */
-    transform: translate(calc(6px - 12px), -50%); 
-  }
-}
-
-// 3. FOR OTHER MESSAGES: Float cleanly outside the right wall
-.messageBubbleOther {
-  .emojiToggle {
-    left: 100%;
-    right: auto;
-    /* Balances out the right: 6px from the parent container container positioning */
-    transform: translate(calc(6px + 12px), -50%);
-    margin-left: -10px;
-  }
-}
-
-// 4. Reveal on row hover
-.messageRow {
-  &:hover {
-    .emojiToggle {
-      opacity: 1;
-      visibility: visible;
-    }
-  }
-}
-
-
-
+/* ==========================================================================
+   WhatsApp Centered Reaction Pill (Centered Directly Over Smile Button Anchor)
+   ========================================================================== */
 .dropdownQuickReactions {
   display: flex;
+  align-items: center;
   gap: 8px;
-  padding: 6px 10px;
-  
-  // Floating parameters relative to the main message bubble container
+  padding: 6px 14px;
   position: absolute;
-  bottom: calc(100% + 6px); // Floats beautifully right above the bubble's top border
+  
+  // 1. POSITIONING MASTER LAYER: Floats perfectly centered above the smiley icon box context
+  bottom: calc(100% + 12px); 
+  left: 50%;
+  transform: translateX(-50%); // Flawless mathematical midpoint centering snap layout grid
   z-index: 10005;
+  
   width: max-content;
+  max-width: calc(100vw - 32px); // Edge boundary protection
   
-  // Glassmorphism Card Theme styling
-  background: rgba(30, 41, 59, 0.9); 
-  backdrop-filter: blur(14px);       
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 30px;                
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.2);
+  // WhatsApp Dark premium glassmorphism styling
+  background: #1f2c34; // Exact WhatsApp Dark Mode floating container accent background color
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 30px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
   
-  animation: waWhatsAppPopIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+  // Custom center scale pop animation entry curve configuration profile
+  animation: waCenteredSmilePop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-// FOR YOUR MESSAGES: Align the tray perfectly flush with the right bubble wall
-.messageBubbleMe {
-  .dropdownQuickReactions {
-    right: 0;
-    left: auto;
-  }
-}
-
-// FOR OTHER MESSAGES: Align the tray perfectly flush with the left bubble wall
-.messageBubbleOther {
-  .dropdownQuickReactions {
-    left: 0;
-    right: auto;
-  }
-}
-
-// Individual Emoji Animation/Hover mechanics
 .quickReactionEmojiBtn {
   background: transparent;
   border: none;
-  font-size: 20px; 
+  font-size: 22px; 
   cursor: pointer;
   padding: 4px;
   border-radius: 50%;
   line-height: 1;
   user-select: none;
-  
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.2s;
   animation: waEmojiPopUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   
-  @for $i from 1 through 6 {
+  @for $i from 1 through 7 {
     &:nth-child(#{$i}) {
       animation-delay: #{$i * 0.025}s;
     }
   }
 
   &:hover {
-    transform: scale(1.3) translateY(-4px); 
-    background-color: rgba(255, 255, 255, 0.12);
-  }
-  
-  &:active {
-    transform: scale(1.05);
+    transform: scale(1.28) translateY(-4px);
+    background-color: rgba(255, 255, 255, 0.08);
   }
 }
 
-@keyframes waWhatsAppPopIn {
+/* ==========================================================================
+   Animations Lookups
+   ========================================================================== */
+@keyframes waCenteredSmilePop {
   0% {
     opacity: 0;
-    transform: translateY(8px) scale(0.92);
+    transform: translateX(-50%) translateY(8px) scale(0.92);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateX(-50%) translateY(0) scale(1);
   }
 }
 
@@ -412,4 +374,42 @@
     opacity: 1;
     transform: scale(1) translateY(0);
   }
+}
+/* ==========================================================================
+   Corner Badges Placement Layout overrides
+   ========================================================================== */
+.reactionBadgesRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  position: absolute;
+  bottom: -12px; // Pulls it slightly downward over the bottom line boundary
+  z-index: 10002;
+  
+  .reactionBadgeBtn {
+    background-color: #1e293b !important; // Deep WhatsApp slate container color
+    border: 1px solid #131c21; // Match your background canvas frame color to blend seamlessly
+    border-radius: 20px;
+    padding: 2px 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    cursor: pointer;
+    
+    &.reactionBadgeActive {
+      border-color: #3b82f6; // Highlights blue if you were a participant
+    }
+  }
+}
+
+// Snaps row layers precisely to relative layout edges
+.messageBubbleColumnMe .reactionBadgesRow {
+  right: 10px;
+  left: auto;
+}
+
+.messageBubbleColumnOther .reactionBadgesRow {
+  left: 10px;
+  right: auto;
 }
