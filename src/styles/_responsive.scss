@@ -418,6 +418,19 @@ body {
   color: var(--text-muted);
 }
 
+.infoText{
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  
+  // ⚡️ CHANGE THIS VALUE to specify how many lines you want to allow before truncating:
+  -webkit-line-clamp: 2; 
+  line-clamp: 2;
+  
+  overflow: hidden;         // Hides any text that overflows past your specified lines limit
+  word-break: break-all;    // Keeps unbroken test string characters from overflowing horizontally
+  max-width: 100%;
+}
+
 .threadMessagesFeed {
   flex: 1;
   overflow-y: auto;

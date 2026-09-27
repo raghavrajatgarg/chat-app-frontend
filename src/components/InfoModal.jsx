@@ -1,18 +1,54 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import styles from '../styles/App.module.scss';
 
-export default function InfoModal({ message, onClose }) {
+// 📁 File path: InfoModal.jsx
+export default function InfoModal({ message, onClose, allRegisteredUsers = [] }) {
   const [searchTerm, setSearchTerm] = useState('');
 
   if (!message) return null;
 
-  // Ensure readBy is safely parsed as an array
-  const readReceipts = Array.isArray(message.readBy) ? message.readBy : [];
+  // 1. Core Data Normalization: Hydrate raw User ID strings into complete profiles
+// 📁 File path: InfoModal.jsx (Around Line 12)
+// 📁 File path: InfoModal.jsx (Around Line 12)
+const hydratedReaders = useMemo(() => {
+  const rawIds = Array.isArray(message.readBy) ? message.readBy : [];
+  
+  // Track unique user IDs we've already processed in this modal session
+  const uniqueUserIds = new Set();
+  const dedupedArray = [];
 
-  // Safely filter users, falling back to empty strings if name is missing
-  const filteredReaders = readReceipts.filter((reader) => {
-    const name = reader?.name || '';
-    return name.toLowerCase().includes(searchTerm.toLowerCase());
+  rawIds.forEach((userIdOrObject) => {
+    const targetUid = typeof userIdOrObject === 'string' ? userIdOrObject : (userIdOrObject?.uid || userIdOrObject?.userId || userIdOrObject?._id);
+    
+    if (!targetUid) return;
+
+    // ⚡️ FRONTEND UNIQUE USER SAFETY DOCK: 
+    // If we've already processed this user's profile card row, skip any duplicate tab logs!
+    if (uniqueUserIds.has(targetUid)) return;
+    
+    uniqueUserIds.add(targetUid);
+    dedupedArray.push(userIdOrObject);
+  });
+
+  // Map out your clean, de-duplicated user list row items cleanly
+  return dedupedArray.map((userIdOrObject) => {
+    const targetUid = typeof userIdOrObject === 'string' ? userIdOrObject : (userIdOrObject?.uid || userIdOrObject?.userId || userIdOrObject?._id);
+    const matchingProfile = allRegisteredUsers.find(
+      (u) => u.uid === targetUid || u._id === targetUid || u.id === targetUid
+    );
+
+    return {
+      uid: targetUid || `fallback-key-${Math.random()}`,
+      name: matchingProfile?.name || 'Unknown User',
+      avatar: matchingProfile?.avatar || 'https://placeholder.com',
+      readAt: userIdOrObject?.readAt || message.createdAt || null
+    };
+  });
+}, [message.readBy, message.createdAt, allRegisteredUsers]);
+
+  // 2. Filter profile records matching the query string search parameters
+  const filteredReaders = hydratedReaders.filter((reader) => {
+    return reader.name.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   return (
@@ -34,12 +70,12 @@ export default function InfoModal({ message, onClose }) {
 
         {/* Message Content Preview Snippet */}
         <div className={styles.originalMessagePreview} style={{ borderRadius: '8px', marginBottom: '16px' }}>
-          <strong>{message.sender}:</strong> {message.text || (message.image ? '[Image Asset]' : '[Voice Note]')}
+          <strong>{message.sender}:</strong> <span className={styles.infoText}>{message.text || (message.image ? '[Image Asset]' : '[Voice Note]')}</span>
         </div>
 
-        {/* Feature 2: Interactive Search/Filter Bar */}
-        <div className={styles.searchBarWrapper} style={{ maxWidth: '100%', margin: '0 0 16px 0', background: 'var(--bg-input)' }}>
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" className={styles.searchSvg} viewBox="0 0 16 16">
+        {/* Search/Filter Bar */}
+        <div className={styles.searchBarWrapper} style={{ maxWidth: '100%', margin: '0 0 16px 0', background: 'var(--bg-input)', display: 'flex', alignItems: 'center' }}>
+          <svg xmlns="http://w3.org" width="14" height="14" fill="currentColor" className={styles.searchSvg} viewBox="0 0 16 16">
             <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
           </svg>
           <input
@@ -48,10 +84,10 @@ export default function InfoModal({ message, onClose }) {
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search read by name..."
             className={styles.headerSearchInput}
-            style={{ fontSize: '13px', padding: '6px 12px' }}
+            style={{ fontSize: '13px', padding: '6px 12px', background: 'transparent', border: 'none', color: '#fff', width: '100%', outline: 'none' }}
           />
           {searchTerm && (
-            <button onClick={() => setSearchTerm('')} className={styles.clearSearchBtn} style={{ right: '8px' }}>
+            <button onClick={() => setSearchTerm('')} className={styles.clearSearchBtn} style={{ right: '8px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer' }}>
               ×
             </button>
           )}
@@ -66,7 +102,7 @@ export default function InfoModal({ message, onClose }) {
           {filteredReaders.length > 0 ? (
             filteredReaders.map((reader) => {
               const readTime = reader.readAt
-                ? new Date(reader.readAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })
+                ? new Date(reader.readAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 : 'Just now';
 
               return (
@@ -84,15 +120,15 @@ export default function InfoModal({ message, onClose }) {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <img
-                      src={reader.avatar || 'https://placeholder.com'}
+                      src={reader.avatar}
                       alt=""
                       className={styles.userAvatar}
-                      style={{ width: '28px', height: '28px' }}
+                      style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }}
+                      crossOrigin="anonymous"
                     />
                     <span style={{ fontSize: '13px', color: '#f3f4f6', fontWeight: 500 }}>{reader.name}</span>
                   </div>
 
-                  {/* Feature 1: Read Timestamp Tracking */}
                   <span style={{ fontSize: '11px', color: 'var(--text-subtle)' }}>
                     {readTime}
                   </span>

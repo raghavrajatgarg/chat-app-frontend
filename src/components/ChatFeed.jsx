@@ -92,6 +92,69 @@ function VoiceMessagePlayer({ audioSrc }) {
     </div>
   );
 }
+// 📁 Add this right inside ChatFeed.jsx (Near the top line utilities area)
+function ExpandableText({ text, highlightText, searchQuery }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // ⚡️ Set the character threshold. WhatsApp usually clips around 500-700 characters.
+  const CHARACTER_LIMIT = 300;
+
+  if (!text) return null;
+  if (text === "\u200B") return null; // Safe guard check for blank spacers
+
+  // If the text is short, just render it normally with your existing text search highlights
+  if (text.length <= CHARACTER_LIMIT || isExpanded) {
+    return (
+      <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+        {highlightText(text, searchQuery)}
+        {isExpanded && (
+          <button
+            type="button"
+            onClick={() => setIsExpanded(false)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#80EF80', // WhatsApp Teal Mode Accent
+              fontWeight: '600',
+              cursor: 'pointer',
+              marginLeft: '6px',
+              padding: 0,
+              fontSize: '13px'
+            }}
+          >
+            Read less
+          </button>
+        )}
+      </span>
+    );
+  }
+
+  // If the text exceeds the limit and is collapsed, clip it cleanly
+  const truncatedText = text.slice(0, CHARACTER_LIMIT) + '...';
+
+  return (
+    <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+      {highlightText(truncatedText, searchQuery)}
+      <button
+        type="button"
+        onClick={() => setIsExpanded(true)}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: '#80EF80', // WhatsApp Teal Accent Tone
+          fontWeight: '600',
+          cursor: 'pointer',
+          marginLeft: '6px',
+          padding: 0,
+          fontSize: '13px',
+          display: 'inline-block'
+        }}
+      >
+        Read more
+      </button>
+    </span>
+  );
+}
 
 export default function ChatFeed({
   messages,
@@ -337,6 +400,7 @@ export default function ChatFeed({
               const showHeader = (!isSameSender && !isWithinTimeWindow);
 
               return (
+                
                 <div
                   key={msgId || index}
                   data-message-id={msgId}
@@ -415,7 +479,11 @@ export default function ChatFeed({
                               {msg.audio && <VoiceMessagePlayer audioSrc={msg.audio} />}
                               <div className={styles.messageFooterRow}>
                                 <span>
-                                  {msg.text && msg.text !== "​" && highlightText(msg.text, searchQuery)}
+                                  <ExpandableText
+                                    text={msg.text}
+                                    highlightText={highlightText}
+                                    searchQuery={searchQuery}
+                                  />
                                   {msg.edited && <small className={styles.editedIndicatorTag}> (edited)</small>}
                                 </span>
                                 <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
@@ -499,7 +567,7 @@ export default function ChatFeed({
                             {openReactionMenuId === msgId && (
                               <div className={styles.dropdownQuickReactions}>
                                 {/* 1. standard quick emojis loop */}
-                                {['👍', '❤️', '😂', '😮', '😢', '🙏'].map((emoji) => (
+                                {['👍', '❤️'].map((emoji) => (
                                   <button
                                     key={emoji}
                                     type="button"

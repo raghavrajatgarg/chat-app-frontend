@@ -62,11 +62,72 @@
   /* 🌟 Stacks image, text, and elements vertically */
   align-items: flex-start;
   gap: 8px;
-  width: fit-content;
   /* 🌟 Replaces max-content to prevent forced wide boxes */
-  max-width: 100%;
   text-align: left;
   z-index: 9999;
+}
+/* ==========================================================================
+   Desktop Layout Clipping Defenses (Fixes Laptop Text Overflow Bugs)
+   ========================================================================== */
+
+// 1. THE ROOT CLAMP ANCHOR: This intermediate container MUST be allowed to shrink to 0 width.
+// Without min-width: 0, the browser defaults to min-width: auto (min-content), forcing text line overflow.
+.messageBubbleRowAnchor {
+  display: flex !important;
+  align-items: center !important;
+  position: relative;
+  max-width: 100%;
+  min-width: 0 !important; // ⚡️ CRITICAL LAPTOP FIX: Breaks open-content width limits!
+}
+
+.messageBubbleColumn {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  max-width: 100%;
+  min-width: 0 !important; // ⚡️ CRITICAL LAPTOP FIX: Allows column blocks to shrink under text rows
+}
+
+// 2. THE TEXT CONTAINER OVERRIDES
+.messageBubbleBase {
+  position: relative;
+  color: #fff;
+  padding: 5px 14px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  
+  // Sizing controls: Overrides default max-content flows
+  width: auto !important;             // Lets the width compute responsively based on content vs layout space
+  max-width: 100% !important;         // Forces the bubble to respect parent line boxes completely
+  min-width: 0 !important;
+  
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  text-align: left;
+  z-index: 9999;
+}
+
+// 3. THE WORD-BREAK ENGINE ACTIVATION
+.messageText {
+  flex-grow: 1;
+  display: block !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  
+  // Overrides modern standard inline word mapping to slice strings clean at the borders
+  word-break: break-all !important;   // Forces long continuous character chains to break apart and wrap
+  overflow-wrap: break-word !important; // Safety parameter wrapper layer fallback
+  white-space: pre-wrap !important;    // Preserves code layout structures and user line breaks naturally
+}
+
+// 4. PREVENT SIDE ELEMENT WRAPPING MUTATIONS
+.messageContentWrapper {
+  display: flex;
+  gap: 10px;
+  max-width: 75%; // Keeps your chat layout neatly sitting on its side grid boundaries
+  align-items: flex-start;
+  min-width: 0 !important; // Safe guard line against flex string calculations breaking things
 }
 
 .messageBubbleMe {
@@ -520,4 +581,140 @@
 .closeText{
   margin-bottom: -5px;
   margin-left: -7px;
+}
+  .messageText {
+    display: block !important;    // Breaks any native browser inline sizing flows
+    word-break: break-all !important;  // Slices unbroken character chains instantly
+    overflow-wrap: break-word !important;
+    white-space: pre-wrap !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+@media (max-width: 768px) {
+
+  // 1. FORCE THE TEXT TO BLOCK LEVEL WRAP
+
+  // 2. CLAMP THE BUBBLE HOUSING
+  .messageBubbleBase {
+    font-size: 13px !important;
+    padding: 8px 12px !important;
+    
+    // ⚡️ CRITICAL FIXES: Overrides desktop max-content strings 
+    // so the bubble yields to mobile container screen edge walls
+    width: auto !important; 
+    max-width: 100% !important; 
+    
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  // 3. COLLAPSE INTERNAL FIXED WIDTHS
+  .messageBubbleColumn {
+    width: auto !important;
+    max-width: 100% !important;
+  }
+
+  .messageBubbleRowAnchor {
+    width: auto !important;
+    max-width: 100% !important;
+  }
+
+  .messageContentWrapper {
+    max-width: 88% !important; // Allows a tiny boundary window on the side walls
+    gap: 0px !important;
+  }
+
+  .messageAvatar {
+    width: 28px !important;
+    height: 28px !important;
+    margin-right: 10px;
+  }
+}
+
+/* ==========================================================================
+   Laptop Viewport Boundary Controls (Fixes Infinite Flex Stretching)
+   ========================================================================== */
+
+// 1. THE MESSAGE LIST TRACK: Ensure the scrollable feed lists constraint themselves
+.messagesListContainer,
+.messageFeed {
+  max-width: 100% !important;
+  width: 100% !important;
+  min-width: 0 !important; // Breaks infinite content calculations on the main feed
+  overflow-x: hidden !important; // Safety layer to block any horizontal scrolling bugs
+}
+
+// 2. THE ROW STRUCTURES: Clamp the maximum width context of individual chat lines
+.messageRow {
+  display: flex;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important; 
+  box-sizing: border-box;
+}
+
+.messageContentWrapper {
+  display: flex;
+  gap: 10px;
+  max-width: 75% !important; // Keeps your message bubbles neatly occupying only 75% of the feed width
+  width: max-content !important; // Let short messages shrink tightly, but clamp at 75%
+  min-width: 0 !important;
+  box-sizing: border-box;
+}
+
+// 3. THE HORIZONTAL ROW ANCHOR: Must yield to its parent wrapper sizes completely
+.messageBubbleRowAnchor {
+  display: flex !important;
+  align-items: center !important;
+  position: relative;
+  max-width: 100% !important;
+  width: 100% !important; // Force it to fill the 75% width boundary completely if text is long
+  min-width: 0 !important; 
+}
+
+.messageBubbleColumn {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  max-width: 100% !important;
+  width: auto !important;
+  min-width: 0 !important;
+}
+
+// 4. THE CORE BUBBLE ADJUSTMENT
+.messageBubbleBase {
+  position: relative;
+  color: #fff;
+  padding: 5px 14px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  
+  // Sizing locks: Replaces hard max-content allocations
+  width: auto !important; 
+  max-width: 100% !important; 
+  min-width: 0 !important;
+  
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start;
+  gap: 8px;
+  z-index: 9999;
+}
+
+// 5. THE WORD-BREAK ENGINE FORCE
+.messageText {
+  flex-grow: 1;
+  display: block !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  
+  word-break: break-all !important;   // Forces long continuous character chains to break apart and wrap
+  overflow-wrap: break-word !important; // Safety parameter wrapper layer fallback
+  white-space: pre-wrap !important;    // Preserves structure layouts and user line breaks naturally
+  
+  span {
+    word-break: break-all !important; // Enforces the rule onto the sub-span nodes as well
+    display: inline-block;
+    max-width: 100%;
+  }
 }

@@ -48,6 +48,35 @@ export default function useChatController({ callControllerRef, providedSocketRef
   const activeThreadMessageRef = useRef(null);
   const [drafts, setDrafts] = useState({});
   const [currentText, setCurrentText] = useState('');
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedMessageIds, setSelectedMessageIds] = useState([]);
+
+  // Toggles selecting a single message row checkbox
+  const handleToggleSelectMessage = useCallback((msgId) => {
+    setSelectedMessageIds((prev) =>
+      prev.includes(msgId) ? prev.filter((id) => id !== msgId) : [...prev, msgId]
+    );
+  }, []);
+
+  // Exits selection mode and empties tracking registers
+  const handleCancelSelection = useCallback(() => {
+    setIsSelectionMode(false);
+    setSelectedMessageIds([]);
+  }, []);
+
+  // Emits the collection of target IDs to your websocket or HTTP server endpoint
+  const handleMassDeleteMessages = useCallback(() => {
+    if (selectedMessageIds.length === 0 || !socketRef.current) return;
+
+    if (window.confirm(`Are you sure you want to delete ${selectedMessageIds.length} messages?`)) {
+      socketRef.current.emit('mass_delete_messages', {
+        messageIds: selectedMessageIds,
+        room: room
+      });
+      handleCancelSelection();
+    }
+  }, [selectedMessageIds, room, handleCancelSelection]);
+
 
   useEffect(() => onAuthStateChanged(auth, (nextUser) => {
     const isUnverifiedPasswordUser = nextUser?.providerData.some((provider) => provider.providerId === 'password') && !nextUser.emailVerified;
@@ -93,12 +122,36 @@ export default function useChatController({ callControllerRef, providedSocketRef
         const socket = io(BACKEND_URL, { autoConnect: true, auth: { token } });
         socketRef.current = socket;
         socket.emit('realRegisterUser', user.uid);
+
         const handleReadUpdate = ({ messageIds, userId }) => {
-          setMessages((prev) => prev.map((message) => messageIds.includes(message._id)
-            ? { ...message, readBy: [...(message.readBy || []), userId] }
-            : message));
+          setMessages((prev) =>
+            prev.map((message) => {
+              if (!messageIds.includes(message._id)) return message;
+
+              // Ensure the baseline array initialization template exists
+              const existingReadBy = Array.isArray(message.readBy) ? message.readBy : [];
+
+              // Safety check: Don't duplicate the record if it somehow fires twice
+              const alreadyRead = existingReadBy.some((r) => r.uid === userId);
+              if (alreadyRead) return message;
+
+              return {
+                ...message,
+                // ✅ PUSH THE REAL-TIME OBJECT STRUCTURE MATCHING YOUR NEW SCHEEMA
+                readBy: [
+                  ...existingReadBy,
+                  {
+                    uid: userId,
+                    readAt: new Date().toISOString() // ⚡️ Captures precise real-time receipt event markers
+                  }
+                ]
+              };
+            })
+          );
         };
+
         socket.on('messages_read_update', handleReadUpdate);
+
         const removeCallListeners = callControllerRef.current?.registerSocketListeners?.(socket);
         let fcmDeviceToken = null;
         try {
@@ -111,19 +164,19 @@ export default function useChatController({ callControllerRef, providedSocketRef
         } catch (error) { console.warn('FCM Token skipped:', error); }
         socket.emit('user_connected', { uid: user.uid, name: user.displayName, email: user.email, avatar: user.photoURL, pushSubscription: fcmDeviceToken });
         socket.on('active_users_list', (users) => setActiveUsers(Array.from(new Map(users.map((item) => [item.uid, item])).values())));
-socket.on('message_updated', (updatedMessage) => {
-  // Update main message array history trace context
-  setMessages((prev) => 
-    prev.map((message) => message._id === updatedMessage._id ? updatedMessage : message)
-  );
-  
-  // Also update search result metrics if active to prevent state variable data mutations
-  setSearchResults((prev) => 
-    Array.isArray(prev) 
-      ? prev.map((message) => message._id === updatedMessage._id ? updatedMessage : message) 
-      : []
-  );
-});
+        socket.on('message_updated', (updatedMessage) => {
+          // Update main message array history trace context
+          setMessages((prev) =>
+            prev.map((message) => message._id === updatedMessage._id ? updatedMessage : message)
+          );
+
+          // Also update search result metrics if active to prevent state variable data mutations
+          setSearchResults((prev) =>
+            Array.isArray(prev)
+              ? prev.map((message) => message._id === updatedMessage._id ? updatedMessage : message)
+              : []
+          );
+        });
         socket.on('message_deleted', (deletedId) => setMessages((prev) => prev.filter((message) => message._id !== deletedId)));
         socket.on('receive_message', (message) => {
           if (message.room !== roomRef.current) return;
@@ -180,13 +233,26 @@ socket.on('message_updated', (updatedMessage) => {
     fetchWithAuth(`${BACKEND_URL}/api/users`).then((response) => response.json()).then(setAllRegisteredUsers).catch((error) => console.error('Failed to fetch registered users:', error));
   }, [fetchWithAuth, user]);
 
+  // ✅ To this object-property property tracking structure:
   useEffect(() => {
     if (!user || !messages.length || !socketRef.current) return;
+
     const messageIds = messages
-      .filter((message) => message.senderUid !== user.uid && (!message.readBy || !message.readBy.includes(user.uid)))
+      .filter((message) => {
+        const isNotMine = message.senderUid !== user.uid;
+        const readByArray = Array.isArray(message.readBy) ? message.readBy : [];
+        // Look inside the objects to see if your unique user ID is registered
+        const iHaveNotReadIt = !readByArray.some((r) => r.uid === user.uid);
+
+        return isNotMine && iHaveNotReadIt;
+      })
       .map((message) => message._id);
-    if (messageIds.length) socketRef.current.emit('mark_messages_read', { messageIds, userId: user.uid, room });
+
+    if (messageIds.length) {
+      socketRef.current.emit('mark_messages_read', { messageIds, userId: user.uid, room });
+    }
   }, [messages, room, user]);
+
 
   useEffect(() => {
     if (!activeThreadMessage) { setThreadMessages([]); return; }
@@ -197,7 +263,7 @@ socket.on('message_updated', (updatedMessage) => {
     if (!searchQuery.trim()) { setSearchResults([]); return undefined; }
     const timer = setTimeout(async () => {
       try {
-          const response = await fetchWithAuth(`${BACKEND_URL}/api/messages/search?room=${room}&query=${encodeURIComponent(searchQuery)}`);
+        const response = await fetchWithAuth(`${BACKEND_URL}/api/messages/search?room=${room}&query=${encodeURIComponent(searchQuery)}`);
         if (response.ok) {
           setSearchResults(await response.json());
         }
@@ -295,9 +361,9 @@ socket.on('message_updated', (updatedMessage) => {
   const isPrivateRoom = room.includes('_');
   const activeHeaderUser = isPrivateRoom ? allRegisteredUsers.find((item) => item.uid === room.split('_').find((id) => id !== user?.uid)) : null;
   const activeHeaderTitle = activeHeaderUser?.name || `# ${room}`;
-const displayedMessages = Array.isArray(searchQuery.trim() ? searchResults : messages) 
-  ? (searchQuery.trim() ? searchResults : messages) 
-  : [];
+  const displayedMessages = Array.isArray(searchQuery.trim() ? searchResults : messages)
+    ? (searchQuery.trim() ? searchResults : messages)
+    : [];
   const filteredMessages = displayedMessages.filter((message) => !message.parentId && (!searchQuery.trim() || (message.text && message.text.toLowerCase().includes(searchQuery.toLowerCase()))));
   useEffect(() => {
     if (activeConversationId) {
@@ -312,16 +378,16 @@ const displayedMessages = Array.isArray(searchQuery.trim() ? searchResults : mes
       [activeConversationId]: text,
     }));
   };
-// ✅ NEW BULLETPROOF VERSION
-const handleToggleReaction = useCallback((msgId, emoji) => {
-  if (!socketRef.current) return;
-  
-  // Explicitly map your component's 'msgId' to the backend's 'messageId' payload parameter key
-  socketRef.current.emit('toggle_reaction', { 
-    messageId: msgId, 
-    emoji: emoji 
-  });
-}, [socketRef]);
+  // ✅ NEW BULLETPROOF VERSION
+  const handleToggleReaction = useCallback((msgId, emoji) => {
+    if (!socketRef.current) return;
 
-  return { handleToggleReaction, currentText, handleTextChange, BACKEND_URL, ROOMS_LIST, user, loading, messages, activeUsers, newMessage, room, roomLoading, deleteModalMessageId, setDeleteModalMessageId, isDeleting, setIsDeleting, typingUser, unreadCounts, openMenuId, setOpenMenuId, isMobileMenuOpen, setIsMobileMenuOpen, showScrollBtn, setShowScrollBtn, selectedImage, setSelectedImage, isSendingImage, editingMessageId, setEditingMessageId, editingText, setEditingText, searchQuery, setSearchQuery, allRegisteredUsers, infoModalMessage, setInfoModalMessage, isSettingsOpen, setIsSettingsOpen, isFetchingMore, hasMorePages, activeThreadMessage, setActiveThreadMessage, threadMessages, threadInput, setThreadInput, searchInputRef, fileInputRef, messagesEndRef, socketRef, isPrivateRoom, activeHeaderTitle, activeHeaderUser, activeHeaderAvatar: activeHeaderUser?.avatar || null, isHeaderUserOnline: activeHeaderUser ? activeUsers.some((item) => item.uid === activeHeaderUser.uid) : false, filteredMessages, handleSelectRoom, handleOpenPrivateChat, handleInputChange, handleGoogleLogin, handleEmailLogin, handleResendVerification, refreshUser, handleUpdateDisplayName, handleSendMessage, handleEditMessage, handleSendThreadReply, handleSendAudio, handleImageSelect, handlePaste, loadMoreMessages, highlightText, formatLastSeen, setRoom, sendError };
+    // Explicitly map your component's 'msgId' to the backend's 'messageId' payload parameter key
+    socketRef.current.emit('toggle_reaction', {
+      messageId: msgId,
+      emoji: emoji
+    });
+  }, [socketRef]);
+
+  return { isSelectionMode, setIsSelectionMode, selectedMessageIds, handleToggleSelectMessage, handleCancelSelection, handleMassDeleteMessages, handleToggleReaction, currentText, handleTextChange, BACKEND_URL, ROOMS_LIST, user, loading, messages, activeUsers, newMessage, room, roomLoading, deleteModalMessageId, setDeleteModalMessageId, isDeleting, setIsDeleting, typingUser, unreadCounts, openMenuId, setOpenMenuId, isMobileMenuOpen, setIsMobileMenuOpen, showScrollBtn, setShowScrollBtn, selectedImage, setSelectedImage, isSendingImage, editingMessageId, setEditingMessageId, editingText, setEditingText, searchQuery, setSearchQuery, allRegisteredUsers, infoModalMessage, setInfoModalMessage, isSettingsOpen, setIsSettingsOpen, isFetchingMore, hasMorePages, activeThreadMessage, setActiveThreadMessage, threadMessages, threadInput, setThreadInput, searchInputRef, fileInputRef, messagesEndRef, socketRef, isPrivateRoom, activeHeaderTitle, activeHeaderUser, activeHeaderAvatar: activeHeaderUser?.avatar || null, isHeaderUserOnline: activeHeaderUser ? activeUsers.some((item) => item.uid === activeHeaderUser.uid) : false, filteredMessages, handleSelectRoom, handleOpenPrivateChat, handleInputChange, handleGoogleLogin, handleEmailLogin, handleResendVerification, refreshUser, handleUpdateDisplayName, handleSendMessage, handleEditMessage, handleSendThreadReply, handleSendAudio, handleImageSelect, handlePaste, loadMoreMessages, highlightText, formatLastSeen, setRoom, sendError };
 }

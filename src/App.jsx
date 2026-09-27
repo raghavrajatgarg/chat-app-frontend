@@ -85,7 +85,7 @@ export default function App() {
         onEdit={(image) => { window.triggerStudioEditOverride?.(image); lightbox.closeLightbox(); }} />
       {activeChat.editingMessageId && <EditMessageModal isOpen initialText={activeChat.editingText} onSave={activeChat.handleEditMessage}
         onClose={() => { activeChat.setEditingMessageId(null); activeChat.setEditingText(''); }} />}
-      {activeChat.infoModalMessage && <InfoModal message={activeChat.infoModalMessage} onClose={() => activeChat.setInfoModalMessage(null)} />}
+      {activeChat.infoModalMessage && <InfoModal message={activeChat.infoModalMessage} allRegisteredUsers={activeChat.allRegisteredUsers} onClose={() => activeChat.setInfoModalMessage(null)} />}
       {activeChat.deleteModalMessageId && <DeleteModal isDeleting={activeChat.isDeleting}
         onCancel={() => activeChat.setDeleteModalMessageId(null)} onDelete={handleDelete} />}
       {activeChat.isSettingsOpen && (
