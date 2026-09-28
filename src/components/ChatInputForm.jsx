@@ -1,8 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
-import styles from '../styles/App.module.scss';
+import { useState, useRef, useEffect } from "react";
+import styles from "../styles/App.module.scss";
 const formatTime = (seconds) => {
-  const minutes = Math.floor(seconds / 60).toString().padStart(2, '0');
-  const remainingSeconds = (seconds % 60).toString().padStart(2, '0');
+  const minutes = Math.floor(seconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const remainingSeconds = (seconds % 60).toString().padStart(2, "0");
   return `${minutes}:${remainingSeconds}`;
 };
 
@@ -36,22 +38,21 @@ export default function ChatInputForm({
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onerror = () => console.error('Could not read the selected image.');
+    reader.onerror = () => console.error("Could not read the selected image.");
     reader.onload = (event) => {
       const imageDataUrl = event.target.result;
-      setCaptureType('camera');
+      setCaptureType("camera");
       setSelectedImage(imageDataUrl);
       setIsStudioOpen(true);
     };
     reader.readAsDataURL(file);
-    e.target.value = '';
+    e.target.value = "";
   };
-
 
   // Automatically reset textarea height when the message is cleared/sent
   useEffect(() => {
     if (!newMessage && textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = "auto";
     }
   }, [newMessage]);
 
@@ -62,25 +63,24 @@ export default function ChatInputForm({
     const textarea = textareaRef.current;
     if (textarea) {
       // 1. Force collapse the styling height layer to compute coordinates cleanly
-      textarea.style.height = 'auto';
+      textarea.style.height = "auto";
 
       // 2. Read structural computed styles directly from the active DOM tree
       const styles = window.getComputedStyle(textarea);
-      const paddingY = parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
+      const paddingY =
+        parseFloat(styles.paddingTop) + parseFloat(styles.paddingBottom);
 
-      // 3. Subtract the vertical padding bounds from scrollHeight. 
+      // 3. Subtract the vertical padding bounds from scrollHeight.
       // This stops the layout engine from counting the padding box twice!
       const cleanContentHeight = textarea.scrollHeight - paddingY;
 
-      if (e.target.value.trim() === '') {
-        textarea.style.height = 'auto'; // Back to clean baseline parameters when empty
+      if (e.target.value.trim() === "") {
+        textarea.style.height = "auto"; // Back to clean baseline parameters when empty
       } else {
         textarea.style.height = `${cleanContentHeight}px`; // Locks strictly to 1-line text depth!
       }
     }
   };
-
-
 
   // Close dropup when clicking outside
   useEffect(() => {
@@ -89,8 +89,8 @@ export default function ChatInputForm({
         setShowAttachMenu(false);
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const handleAttachClick = () => {
@@ -109,64 +109,125 @@ export default function ChatInputForm({
 
   const handleCameraClick = () => {
     setShowAttachMenu(false);
-    if (window.matchMedia('(max-width: 768px)').matches) {
+    if (window.matchMedia("(max-width: 768px)").matches) {
       cameraInputRef.current?.click();
       return;
     }
     setSelectedImage(null);
-    setCaptureType('camera');
+    setCaptureType("camera");
     setIsStudioOpen(true);
   };
 
   return (
     <div className={styles.formWidthWrapper}>
-      {sendError && <p className={styles.sendError} role="alert">{sendError}</p>}
+      {sendError && (
+        <p className={styles.sendError} role="alert">
+          {sendError}
+        </p>
+      )}
       {isRecording ? (
         <div className={styles.recordingBar}>
           <div className={styles.recordingIndicator}>
             <span className={styles.recordingPulseDot} />
-            <span className={styles.recordingTimer}>{formatTime(recordingTime)}</span>
+            <span className={styles.recordingTimer}>
+              {formatTime(recordingTime)}
+            </span>
             <span className={styles.recordingText}>Recording...</span>
           </div>
           <div className={styles.recordingActions}>
-            <button type="button" onClick={cancelRecording} className={styles.cancelAudioBtn} title="Cancel recording">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
+            <button
+              type="button"
+              onClick={cancelRecording}
+              className={styles.cancelAudioBtn}
+              title="Cancel recording"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                fill="currentColor"
+                class="bi bi-x"
+                viewBox="0 0 16 16"
+              >
                 <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708" />
-              </svg> <span className={styles.btnText}>Cancel</span>
+              </svg>{" "}
+              <span className={styles.btnText}>Cancel</span>
             </button>
-            <button type="button" onClick={stopRecording} className={styles.stopAudioBtn} title="Stop recording">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-check" viewBox="0 0 16 16">
+            <button
+              type="button"
+              onClick={stopRecording}
+              className={styles.stopAudioBtn}
+              title="Stop recording"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                fill="currentColor"
+                class="bi bi-check"
+                viewBox="0 0 16 16"
+              >
                 <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z" />
-              </svg> <span className={styles.btnText}>Done</span>
+              </svg>{" "}
+              <span className={styles.btnText}>Done</span>
             </button>
           </div>
         </div>
       ) : recordedAudioUrl ? (
         <div className={styles.audioPreviewBar}>
-          <audio src={recordedAudioUrl} controls className={styles.previewAudioPlayer} />
+          <audio
+            src={recordedAudioUrl}
+            controls
+            className={styles.previewAudioPlayer}
+          />
           <div className={styles.recordingActions}>
-            <button type="button" onClick={cancelRecording} className={styles.cancelAudioBtn} title="Discard">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-x" viewBox="0 0 16 16">
+            <button
+              type="button"
+              onClick={cancelRecording}
+              className={styles.cancelAudioBtn}
+              title="Discard"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                fill="currentColor"
+                class="bi bi-x"
+                viewBox="0 0 16 16"
+              >
                 <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708" />
-              </svg> <span className={styles.btnText}>Discard</span>
+              </svg>{" "}
+              <span className={styles.btnText}>Discard</span>
             </button>
-            <button type="button" onClick={handleSendAudio} className={styles.sendAudioBtn} title="Send Voice Note">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-send" viewBox="0 0 16 16">
+            <button
+              type="button"
+              onClick={handleSendAudio}
+              className={styles.sendAudioBtn}
+              title="Send Voice Note"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                fill="currentColor"
+                class="bi bi-send"
+                viewBox="0 0 16 16"
+              >
                 <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576zm6.787-8.201L1.591 6.602l4.339 2.76z" />
-              </svg> <span className={styles.btnText}>Send Voice Note</span>
+              </svg>{" "}
+              <span className={styles.btnText}>Send Voice Note</span>
             </button>
           </div>
         </div>
       ) : (
         <form onSubmit={handleSendMessage} className={styles.chatForm}>
-
           {/* EXACTLY ONE SET OF HIDDEN INPUTS MOUNTED AT THE ROOT LAYER */}
           <input
             type="file"
             accept="image/*"
             ref={fileInputRef}
             onChange={handleDeviceImageSelect}
-            style={{ display: 'none' }}
+            style={{ display: "none" }}
           />
 
           <input
@@ -175,7 +236,7 @@ export default function ChatInputForm({
             capture="environment"
             ref={cameraInputRef}
             onChange={handleDeviceImageSelect}
-            style={{ display: 'none' }}
+            style={{ display: "none" }}
           />
 
           {/* Attachment Button & Menu Container */}
@@ -184,10 +245,21 @@ export default function ChatInputForm({
               type="button"
               onClick={handleAttachClick}
               className={styles.logoutBtn}
-              style={{ padding: '10px 12px', borderColor: '#374151', color: '#9ca3af', marginRight: '-4px' }}
+              style={{
+                padding: "10px 12px",
+                borderColor: "#374151",
+                color: "#9ca3af",
+                marginRight: "-4px",
+              }}
               title="Attach"
             >
-              <svg xmlns="http://w3.org" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <svg
+                xmlns="http://w3.org"
+                width="16"
+                height="16"
+                fill="currentColor"
+                viewBox="0 0 16 16"
+              >
                 <path d="M4.5 3a2.5 2.5 0 0 1 5 0v9a1.5 1.5 0 0 1-3 0V5a.5.5 0 0 1 1 0v7a.5.5 0 0 0 1 0V3a1.5 1.5 0 1 0-3 0v9a2.5 2.5 0 0 0 5 0V5a.5.5 0 0 1 1 0v7a3.5 3.5 0 1 1-7 0z" />
               </svg>
             </button>
@@ -195,8 +267,19 @@ export default function ChatInputForm({
             {showAttachMenu && (
               <div className={styles.attachDropup}>
                 {/* Upload Photo Button */}
-                <button type="button" onClick={handleSelectPhotos} className={styles.dropupItem}>
-                  <svg xmlns="http://w3.org" width="16" height="16" fill="currentColor" className="bi bi-image" viewBox="0 0 16 16">
+                <button
+                  type="button"
+                  onClick={handleSelectPhotos}
+                  className={styles.dropupItem}
+                >
+                  <svg
+                    xmlns="http://w3.org"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    className="bi bi-image"
+                    viewBox="0 0 16 16"
+                  >
                     <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0" />
                     <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z" />
                   </svg>
@@ -206,10 +289,20 @@ export default function ChatInputForm({
                 {/* Screenshot Studio Button */}
                 <button
                   type="button"
-                  onClick={() => { setShowAttachMenu(false); setCaptureType('screen'); setIsStudioOpen(true); }}
+                  onClick={() => {
+                    setShowAttachMenu(false);
+                    setCaptureType("screen");
+                    setIsStudioOpen(true);
+                  }}
                   className={`${styles.dropupItem} ${styles.screenshotDropupItem}`}
                 >
-                  <svg xmlns="http://w3.org" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                  <svg
+                    xmlns="http://w3.org"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    viewBox="0 0 16 16"
+                  >
                     <path d="M1.5 1a.5.5 0 0 0-.5.5v3a.5.5 0 0 0 1 0v-2.5h2.5a.5.5 0 0 0 0-1zM12 1.5a.5.5 0 0 1 .5-.5h2.5a.5.5 0 0 1 .5.5v2.5a.5.5 0 0 1-1 0v-2.5h-2.5a.5.5 0 0 1-.5-.5M1.5 12a.5.5 0 0 1 .5.5v2.5h2.5a.5.5 0 0 1 0 1H1.5a.5.5 0 0 1-.5-.5v-3a.5.5 0 0 1 .5-.5m13 0a.5.5 0 0 1 .5.5v3a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1 0-1h2.5v-2.5a.5.5 0 0 1 .5-.5M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 1h6a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1" />
                   </svg>
                   <span>Screenshot</span>
@@ -221,7 +314,14 @@ export default function ChatInputForm({
                   onClick={handleCameraClick}
                   className={styles.dropupItem}
                 >
-                  <svg xmlns="http://w3.org" width="16" height="16" fill="currentColor" className="bi bi-camera" viewBox="0 0 16 16">
+                  <svg
+                    xmlns="http://w3.org"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    className="bi bi-camera"
+                    viewBox="0 0 16 16"
+                  >
                     <path d="M15 12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h1.172a3 3 0 0 0 2.12-.879l.83-.828A1 1 0 0 1 6.827 3h2.344a1 1 0 0 1 .707.293l.828.828A3 3 0 0 0 12.828 5H14a1 1 0 0 1 1 1zM2 4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-1.172a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 9.172 2H6.828a2 2 0 0 0-1.414.586l-.828.828A2 2 0 0 1 3.172 4z" />
                     <path d="M8 11a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5m0 1a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M3 6.5a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0" />
                   </svg>
@@ -229,11 +329,22 @@ export default function ChatInputForm({
                 </button>
 
                 {/* Voice Note Button */}
-                <button type="button" onClick={handleSelectAudio} className={`${styles.dropupItem} ${styles.voiceBtn}`}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-mic" viewBox="0 0 16 16">
-  <path d="M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5"/>
-  <path d="M10 8a2 2 0 1 1-4 0V3a2 2 0 1 1 4 0zM8 0a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V3a3 3 0 0 0-3-3"/>
-</svg>
+                <button
+                  type="button"
+                  onClick={handleSelectAudio}
+                  className={`${styles.dropupItem} ${styles.voiceBtn}`}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    class="bi bi-mic"
+                    viewBox="0 0 16 16"
+                  >
+                    <path d="M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5" />
+                    <path d="M10 8a2 2 0 1 1-4 0V3a2 2 0 1 1 4 0zM8 0a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V3a3 3 0 0 0-3-3" />
+                  </svg>
                   <span>Voice Note</span>
                 </button>
               </div>
@@ -245,9 +356,19 @@ export default function ChatInputForm({
             type="button"
             onClick={startRecording}
             className={`${styles.micBtn} ${styles.desktopMicBtn}`}
-            style={{ padding: '8px 12px', borderColor: '#374151', color: '#9ca3af' }}
+            style={{
+              padding: "8px 12px",
+              borderColor: "#374151",
+              color: "#9ca3af",
+            }}
           >
-            <svg xmlns="http://w3.org" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <svg
+              xmlns="http://w3.org"
+              width="16"
+              height="16"
+              fill="currentColor"
+              viewBox="0 0 16 16"
+            >
               <path d="M3.5 6.5A.5.5 0 0 1 4 7v1a4 4 0 0 0 8 0V7a.5.5 0 0 1 1 0v1a5 5 0 0 1-4.5 4.975V15h3a.5.5 0 0 1 0 1h-7a.5.5 0 0 1 0-1h3v-2.025A5 5 0 0 1 3 8V7a.5.5 0 0 1 .5-.5" />
               <path d="M10 8a2 2 0 1 1-4 0V3a2 2 0 1 1 4 0zM8 0a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V3a3 3 0 0 0-3-3" />
             </svg>
@@ -259,28 +380,51 @@ export default function ChatInputForm({
             onChange={handleTextareaChange}
             onPaste={handlePaste}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                if (newMessage.trim() && !roomLoading && !isSendingImage && !isSending) {
+                if (
+                  newMessage.trim() &&
+                  !roomLoading &&
+                  !isSendingImage &&
+                  !isSending
+                ) {
                   e.target.form.requestSubmit();
                 }
               }
             }}
-            placeholder={isSendingImage ? "Sending image..." : roomLoading ? "Loading room..." : "Type a message..."}
+            placeholder={
+              isSendingImage
+                ? "Sending image..."
+                : roomLoading
+                  ? "Loading room..."
+                  : "Type a message..."
+            }
             disabled={roomLoading || isSendingImage || isSending}
             rows={1}
             className={styles.chatInput}
           />
 
-          <button type="submit" disabled={roomLoading || isSendingImage || isSending} className={styles.sendBtn}>
+          <button
+            type="submit"
+            disabled={roomLoading || isSendingImage || isSending}
+            className={styles.sendBtn}
+          >
             {isSendingImage ? (
               <span className={styles.inlineSpinner} />
             ) : (
               <>
-                <svg xmlns="http://w3.org" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                <svg
+                  xmlns="http://w3.org"
+                  width="16"
+                  height="16"
+                  fill="currentColor"
+                  viewBox="0 0 16 16"
+                >
                   <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576zm6.787-8.201L1.591 6.602l4.339 2.76z" />
                 </svg>
-                <span className={styles.btnText} style={{ marginLeft: '6px' }}>Send</span>
+                <span className={styles.btnText} style={{ marginLeft: "6px" }}>
+                  Send
+                </span>
               </>
             )}
           </button>

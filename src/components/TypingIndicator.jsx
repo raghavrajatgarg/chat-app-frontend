@@ -1,4 +1,4 @@
-import styles from '../styles/App.module.scss';
+import styles from "../styles/App.module.scss";
 
 export default function TypingIndicator({ typingUser }) {
   if (!typingUser) return null;

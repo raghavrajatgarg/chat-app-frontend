@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "566031305634",
+    "project_id": "chatapp-7e398",
+    "storage_bucket": "chatapp-7e398.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:566031305634:android:30f5b13db53e8d6ac200fb",
+        "android_client_info": {
+          "package_name": "com.raghav.chatapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "566031305634-qqlhtd2vd6cohfb2nnsh463aksvc2ccm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAeqc6V13bvtA8nOUncgO2QusUBSJJvYeI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "566031305634-qqlhtd2vd6cohfb2nnsh463aksvc2ccm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 
 export default function useAudioRecorder() {
   const [isRecording, setIsRecording] = useState(false);
@@ -20,7 +20,7 @@ export default function useAudioRecorder() {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };
       mediaRecorderRef.current.onstop = () => {
-        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         setAudioBlob(blob);
         setRecordedAudioUrl(URL.createObjectURL(blob));
         stream.getTracks().forEach((track) => track.stop());
@@ -28,10 +28,15 @@ export default function useAudioRecorder() {
       mediaRecorderRef.current.start();
       setIsRecording(true);
       setRecordingTime(0);
-      timerRef.current = setInterval(() => setRecordingTime((time) => time + 1), 1000);
+      timerRef.current = setInterval(
+        () => setRecordingTime((time) => time + 1),
+        1000,
+      );
     } catch (error) {
-      console.error('Microphone permission denied or error:', error);
-      alert('Could not access microphone. Please check your browser permissions.');
+      console.error("Microphone permission denied or error:", error);
+      alert(
+        "Could not access microphone. Please check your browser permissions.",
+      );
     }
   };
 

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import styles from '../styles/App.module.scss';
+import { useState } from "react";
+import styles from "../styles/App.module.scss";
 
 function Header({
   searchQuery,
@@ -14,7 +14,7 @@ function Header({
   activeHeaderUser,
   isHeaderUserOnline,
   formatLastSeen,
-  startCall
+  startCall,
 }) {
   const [isFullScreenSearchOpen, setIsFullScreenSearchOpen] = useState(false);
   return (
@@ -25,8 +25,17 @@ function Header({
           onClick={onToggleMobileMenu}
           aria-label="Toggle navigation menu"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-            <path fillRule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            fill="currentColor"
+            viewBox="0 0 16 16"
+          >
+            <path
+              fillRule="evenodd"
+              d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"
+            />
           </svg>
         </button>
         <div className={styles.headerUserInfoContainer}>
@@ -42,9 +51,11 @@ function Header({
 
             {/* Dynamic Status: Shows "Online" or the exact "Last seen..." timestamp */}
             {isPrivateRoom && (
-              <span className={`${styles.lastSeenHeader} ${isHeaderUserOnline ? styles.liveIndicator : ''}`}>
+              <span
+                className={`${styles.lastSeenHeader} ${isHeaderUserOnline ? styles.liveIndicator : ""}`}
+              >
                 {isHeaderUserOnline
-                  ? 'Online'
+                  ? "Online"
                   : formatLastSeen(activeHeaderUser?.lastSeen)}
               </span>
             )}
@@ -53,7 +64,15 @@ function Header({
 
         {/* Desktop Search Bar */}
         <div className={styles.searchBarWrapper}>
-          <svg onClick={handleSvgClick} xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className={styles.searchSvg} viewBox="0 0 16 16">
+          <svg
+            onClick={handleSvgClick}
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            fill="currentColor"
+            className={styles.searchSvg}
+            viewBox="0 0 16 16"
+          >
             <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
           </svg>
           <input
@@ -68,7 +87,7 @@ function Header({
             <button
               onClick={(e) => {
                 e.preventDefault(); // 🌟 Stops the browser from recalculating focus boundaries mid-click
-                setSearchQuery('');
+                setSearchQuery("");
 
                 // Explicitly pull focus out of the input field
                 if (document.activeElement instanceof HTMLElement) {
@@ -97,7 +116,13 @@ function Header({
               title={`Call ${activeHeaderUser.name}`}
               aria-label="Start Call"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                fill="currentColor"
+                viewBox="0 0 16 16"
+              >
                 <path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.568 17.568 0 0 0 4.168 6.608 17.569 17.569 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.678.678 0 0 0-.58-.122l-2.19.547a1.745 1.745 0 0 1-1.657-.959L5.451 8.275a1.745 1.745 0 0 1-.959-1.657l.547-2.19a.678.678 0 0 0-.122-.58L3.654 1.328z" />
               </svg>
             </button>
@@ -108,7 +133,13 @@ function Header({
               popoverTarget="mobile-header-popover"
               aria-label="More options"
             >
-              <svg xmlns="http://w3.org" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+              <svg
+                xmlns="http://w3.org"
+                width="18"
+                height="18"
+                fill="currentColor"
+                viewBox="0 0 16 16"
+              >
                 <path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z" />
               </svg>
             </button>
@@ -122,11 +153,19 @@ function Header({
                 className={styles.dropdownSearchBtn}
                 onClick={() => {
                   // Native popovers require manual dismissal when triggering another UI state
-                  document.getElementById("mobile-header-popover")?.hidePopover();
+                  document
+                    .getElementById("mobile-header-popover")
+                    ?.hidePopover();
                   setIsFullScreenSearchOpen(true);
                 }}
               >
-                <svg xmlns="http://w3.org" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                <svg
+                  xmlns="http://w3.org"
+                  width="14"
+                  height="14"
+                  fill="currentColor"
+                  viewBox="0 0 16 16"
+                >
                   <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
                 </svg>
                 Search
@@ -134,8 +173,18 @@ function Header({
             </div>
           </div>
 
-          <button onClick={onOpenSettings} className={styles.gearBtn} aria-label="User Settings">
-            <svg xmlns="http://w3.org" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+          <button
+            onClick={onOpenSettings}
+            className={styles.gearBtn}
+            aria-label="User Settings"
+          >
+            <svg
+              xmlns="http://w3.org"
+              width="18"
+              height="18"
+              fill="currentColor"
+              viewBox="0 0 16 16"
+            >
               <path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.988 1.988l.17.31c.452.83.223 1.875-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.988 1.988l.31-.17a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.988-1.988l-.17-.31a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.988-1.988l-.31.17a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.93 2.93 0 1 1 0-5.86 2.93 2.93 0 0 1 0 5.86z" />
             </svg>
           </button>
@@ -146,8 +195,18 @@ function Header({
       {isFullScreenSearchOpen && (
         <div className={styles.fullScreenSearchOverlay}>
           <div className={styles.fullScreenSearchHeader}>
-            <div className={styles.searchBarWrapper} style={{ maxWidth: '100%', margin: 0, display: 'flex' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className={styles.searchSvg} viewBox="0 0 16 16">
+            <div
+              className={styles.searchBarWrapper}
+              style={{ maxWidth: "100%", margin: 0, display: "flex" }}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                fill="currentColor"
+                className={styles.searchSvg}
+                viewBox="0 0 16 16"
+              >
                 <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
               </svg>
               <input
@@ -162,7 +221,7 @@ function Header({
                 <button
                   onClick={() => {
                     e.preventDefault(); // 🌟 Stops the browser from recalculating focus boundaries mid-click
-                    setSearchQuery('');
+                    setSearchQuery("");
 
                     // Explicitly pull focus out of the input field
                     if (document.activeElement instanceof HTMLElement) {

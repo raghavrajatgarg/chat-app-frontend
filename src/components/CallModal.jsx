@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from "react";
 import styles from "../styles/App.module.scss";
-
 export default function CallModal({
   callStatus,
   callerName,
@@ -13,7 +12,8 @@ export default function CallModal({
   const remoteVideoRef = useRef(null);
   const audioRef = useRef(null);
 
-  // Attach local stream when connected and ref is available
+  // Attach local stream when connected and ref is 
+  
   useEffect(() => {
     if (callStatus === "connected" && localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
@@ -40,15 +40,30 @@ export default function CallModal({
       <div className={styles.callCard}>
         {callStatus === "connected" ? (
           <div className={styles.videoContainer}>
-            <video ref={remoteVideoRef} autoPlay playsInline className={styles.remoteVideo} />
-            <video ref={localVideoRef} autoPlay playsInline muted className={styles.localVideo} />
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className={styles.remoteVideo}
+            />
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className={styles.localVideo}
+            />
             <button className={styles.hangupBtn} onClick={onReject}>
               End Call
             </button>
           </div>
         ) : (
           <div className={styles.ringContainer}>
-            <h3>{callStatus === "incoming" ? `Incoming Call from...` : `Calling...`}</h3>
+            <h3>
+              {callStatus === "incoming"
+                ? `Incoming Call from...`
+                : `Calling...`}
+            </h3>
             <h1>{callerName}</h1>
 
             <div className={styles.actions}>

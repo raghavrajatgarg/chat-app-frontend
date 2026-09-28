@@ -1,13 +1,29 @@
-import { useRef, useEffect, useLayoutEffect, useState } from 'react';
-import styles from '../styles/App.module.scss';
-import EmojiPicker, { Theme } from 'emoji-picker-react';
+import React, {
+  useRef,
+  useEffect,
+  useLayoutEffect,
+  useState,
+  useMemo,
+} from "react";
+import EmojiPicker, { Theme } from "emoji-picker-react";
+import styles from "../styles/App.module.scss";
 
-// Waveform / Audio Player component for voice notes
-function VoiceMessagePlayer({ audioSrc }) {
+// Anti-Lag Cache: Pre-allocated array prevents garbage collection stalls in render loop
+const VOICE_BARS_COUNT = Array.from({ length: 20 });
+
+// Asynchronous URL extraction function
+function extractUrl(text) {
+  if (!text) return null;
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const matches = text.match(urlRegex);
+  return matches ? matches[0] : null;
+}
+
+function VoiceMessagePlayer({ audioSrc, styles }) {
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState('0:00');
+  const [duration, setDuration] = useState("0:00");
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -22,7 +38,7 @@ function VoiceMessagePlayer({ audioSrc }) {
     const handleLoadedMetadata = () => {
       const mins = Math.floor(audio.duration / 60);
       const secs = Math.floor(audio.duration % 60);
-      setDuration(`${mins}:${secs < 10 ? '0' : ''}${secs}`);
+      setDuration(mins + ":" + (secs < 10 ? "0" : "") + secs);
     };
 
     const handleEnded = () => {
@@ -30,14 +46,14 @@ function VoiceMessagePlayer({ audioSrc }) {
       setProgress(0);
     };
 
-    audio.addEventListener('timeupdate', updateProgress);
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener("timeupdate", updateProgress);
+    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+    audio.addEventListener("ended", handleEnded);
 
     return () => {
-      audio.removeEventListener('timeupdate', updateProgress);
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener("timeupdate", updateProgress);
+      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.removeEventListener("ended", handleEnded);
     };
   }, []);
 
@@ -49,7 +65,10 @@ function VoiceMessagePlayer({ audioSrc }) {
       audio.pause();
       setIsPlaying(false);
     } else {
-      audio.play().then(() => setIsPlaying(true)).catch((err) => console.warn("Playback error:", err));
+      audio
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch((err) => console.warn("Playback error:", err));
     }
   };
 
@@ -65,13 +84,30 @@ function VoiceMessagePlayer({ audioSrc }) {
   return (
     <div className={styles.voicePlayerContainer}>
       <audio ref={audioRef} src={audioSrc} preload="metadata" />
-      <button type="button" onClick={togglePlay} className={styles.voicePlayBtn} aria-label={isPlaying ? "Pause" : "Play"}>
+      <button
+        type="button"
+        onClick={togglePlay}
+        className={styles.voicePlayBtn}
+        aria-label={isPlaying ? "Pause" : "Play"}
+      >
         {isPlaying ? (
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            fill="currentColor"
+            viewBox="0 0 16 16"
+          >
             <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5m5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5" />
           </svg>
         ) : (
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            fill="currentColor"
+            viewBox="0 0 16 16"
+          >
             <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.693-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393" />
           </svg>
         )}
@@ -79,47 +115,49 @@ function VoiceMessagePlayer({ audioSrc }) {
 
       <div className={styles.voiceWaveformArea}>
         <div className={styles.voiceProgressBarBg} onClick={handleSeek}>
-          <div className={styles.voiceProgressBarFill} style={{ width: `${progress}%` }} />
+          <div
+            className={styles.voiceProgressBarFill}
+            style={{ width: progress + "%" }}
+          />
         </div>
         <div className={styles.voiceBarsDecoration}>
-          {[...Array(20)].map((_, i) => (
-            <span key={i} className={styles.voiceBar} style={{ height: `${Math.sin(i + 1) * 60 + 40}%` }} />
+          {VOICE_BARS_COUNT.map((_, i) => (
+            <span
+              key={i}
+              className={styles.voiceBar}
+              style={{ height: Math.sin(i + 1) * 60 + 40 + "%" }}
+            />
           ))}
         </div>
       </div>
-
       <span className={styles.voiceDuration}>{duration}</span>
     </div>
   );
 }
-// 📁 Add this right inside ChatFeed.jsx (Near the top line utilities area)
+
 function ExpandableText({ text, highlightText, searchQuery }) {
   const [isExpanded, setIsExpanded] = useState(false);
-
-  // ⚡️ Set the character threshold. WhatsApp usually clips around 500-700 characters.
   const CHARACTER_LIMIT = 300;
 
-  if (!text) return null;
-  if (text === "\u200B") return null; // Safe guard check for blank spacers
+  if (!text || text === "\u200B") return null;
 
-  // If the text is short, just render it normally with your existing text search highlights
   if (text.length <= CHARACTER_LIMIT || isExpanded) {
     return (
-      <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+      <span style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
         {highlightText(text, searchQuery)}
         {isExpanded && (
           <button
             type="button"
             onClick={() => setIsExpanded(false)}
             style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#80EF80', // WhatsApp Teal Mode Accent
-              fontWeight: '600',
-              cursor: 'pointer',
-              marginLeft: '6px',
+              background: "transparent",
+              border: "none",
+              color: "#80EF80",
+              fontWeight: "600",
+              cursor: "pointer",
+              marginLeft: "6px",
               padding: 0,
-              fontSize: '13px'
+              fontSize: "13px",
             }}
           >
             Read less
@@ -129,25 +167,24 @@ function ExpandableText({ text, highlightText, searchQuery }) {
     );
   }
 
-  // If the text exceeds the limit and is collapsed, clip it cleanly
-  const truncatedText = text.slice(0, CHARACTER_LIMIT) + '...';
+  const truncatedText = text.slice(0, CHARACTER_LIMIT) + "...";
 
   return (
-    <span style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+    <span style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
       {highlightText(truncatedText, searchQuery)}
       <button
         type="button"
         onClick={() => setIsExpanded(true)}
         style={{
-          background: 'transparent',
-          border: 'none',
-          color: '#80EF80', // WhatsApp Teal Accent Tone
-          fontWeight: '600',
-          cursor: 'pointer',
-          marginLeft: '6px',
+          background: "transparent",
+          border: "none",
+          color: "#80EF80",
+          fontWeight: "600",
+          cursor: "pointer",
+          marginLeft: "6px",
           padding: 0,
-          fontSize: '13px',
-          display: 'inline-block'
+          fontSize: "13px",
+          display: "inline-block",
         }}
       >
         Read more
@@ -156,495 +193,783 @@ function ExpandableText({ text, highlightText, searchQuery }) {
   );
 }
 
-export default function ChatFeed({
-  messages,
-  user,
-  searchQuery,
-  roomLoading,
-  room,
-  selectedImage,
-  isSendingImage,
-  setSelectedImage,
-  setEditingMessageId,
-  setEditingText,
-  openMenuId,
-  setOpenMenuId,
-  setDeleteModalMessageId,
-  highlightText,
-  setInfoModalMessage,
-  loadMoreMessages,
-  setActiveThreadMessage,
-  messagesEndRef,
-  setActiveLightboxImage,
-  hasMorePages,
-  handleToggleReaction
-}) {
-  const scrollContainerRef = useRef(null);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const lastMessageIdRef = useRef(null);
-  const isInitialRoomLoadRef = useRef(true);
-  const roomLoadingObservedRef = useRef(false);
-  const previousMessagesRef = useRef({ room, count: 0, lastMessageKey: null });
-  const shouldStickToBottomRef = useRef(true);
-  const isFetchingMoreRef = useRef(false);
-  const [openReactionMenuId, setOpenReactionMenuId] = useState(null);
-  const [activePickerMessageId, setActivePickerMessageId] = useState(null); // 👈 MAKE SURE THIS IS HERE
+/* ==========================================
+   MAIN COMPONENT: ChatFeed (React.memo Optimized)
+   ========================================== */
+const ChatFeed = React.memo(
+  function ChatFeed({
+    messages,
+    user,
+    searchQuery,
+    roomLoading,
+    room,
+    selectedImage,
+    isSendingImage,
+    setSelectedImage,
+    setEditingMessageId,
+    setEditingText,
+    openMenuId,
+    setOpenMenuId,
+    setDeleteModalMessageId,
+    highlightText,
+    setInfoModalMessage,
+    loadMoreMessages,
+    setActiveThreadMessage,
+    messagesEndRef,
+    setActiveLightboxImage,
+    hasMorePages,
+    handleToggleReaction,
+  }) {
+    const scrollContainerRef = useRef(null);
+    const [isFetchingMore, setIsFetchingMore] = useState(false);
+    const lastMessageIdRef = useRef(null);
+    const isInitialRoomLoadRef = useRef(true);
+    const roomLoadingObservedRef = useRef(false);
+    const previousMessagesRef = useRef({
+      room,
+      count: 0,
+      lastMessageKey: null,
+    });
+    const shouldStickToBottomRef = useRef(true);
+    const isFetchingMoreRef = useRef(false);
+    const [openReactionMenuId, setOpenReactionMenuId] = useState(null);
+    const [activePickerMessageId, setActivePickerMessageId] = useState(null);
 
-  const paginationAnchorRef = useRef(null);
-  const paginationFirstMessageIdRef = useRef(null);
-  const isPaginatingRef = useRef(false);
+    const paginationAnchorRef = useRef(null);
+    const paginationFirstMessageIdRef = useRef(null);
+    const isPaginatingRef = useRef(false);
 
-  const performScrollSnap = () => {
-    const container = scrollContainerRef.current;
-    if (container) container.scrollTop = container.scrollHeight;
-  };
+    const performScrollSnap = () => {
+      const container = scrollContainerRef.current;
+      if (container) container.scrollTop = container.scrollHeight;
+    };
 
-  const keepFeedAtBottomAfterLayoutChange = () => {
-    const container = scrollContainerRef.current;
-    if (container && shouldStickToBottomRef.current) {
-      container.scrollTop = container.scrollHeight;
-    }
-  };
-
-  useLayoutEffect(() => {
-    isInitialRoomLoadRef.current = true;
-    roomLoadingObservedRef.current = false;
-    previousMessagesRef.current = { room, count: 0, lastMessageKey: null };
-    shouldStickToBottomRef.current = true;
-    lastMessageIdRef.current = null;
-    isPaginatingRef.current = false;
-    paginationAnchorRef.current = null;
-    paginationFirstMessageIdRef.current = null;
-  }, [room]);
-
-  useLayoutEffect(() => {
-    if (roomLoading) {
-      roomLoadingObservedRef.current = true;
-      return;
-    }
-
-    const lastMessage = messages[messages.length - 1];
-    const lastMessageKey = lastMessage?.clientMessageId || lastMessage?._id || lastMessage?.id || null;
-
-    if (isInitialRoomLoadRef.current) {
-      const messagesBelongToRoom = messages.length > 0 && messages.every((message) => !message.room || message.room === room);
-      if (!roomLoadingObservedRef.current && !messagesBelongToRoom) return;
-      isInitialRoomLoadRef.current = false;
-      roomLoadingObservedRef.current = false;
-      previousMessagesRef.current = { room, count: messages.length, lastMessageKey };
-      shouldStickToBottomRef.current = true;
-      if (messages.length > 0) performScrollSnap();
-      return;
-    }
-
-    const container = scrollContainerRef.current;
-    if (!container || previousMessagesRef.current.room !== room) return;
-
-    if (isPaginatingRef.current) {
-      const firstMessage = messages[0];
-      const firstMessageId = firstMessage?._id || firstMessage?.id;
-      if (firstMessageId === paginationFirstMessageIdRef.current) return;
-
-      const anchor = paginationAnchorRef.current;
-      if (anchor?.element?.isConnected) {
-        const currentTop = anchor.element.getBoundingClientRect().top;
-        container.scrollTop += currentTop - anchor.top;
+    const keepFeedAtBottomAfterLayoutChange = () => {
+      const container = scrollContainerRef.current;
+      if (container && shouldStickToBottomRef.current) {
+        container.scrollTop = container.scrollHeight;
       }
+    };
 
+    useLayoutEffect(() => {
+      isInitialRoomLoadRef.current = true;
+      roomLoadingObservedRef.current = false;
+      previousMessagesRef.current = { room, count: 0, lastMessageKey: null };
+      shouldStickToBottomRef.current = true;
+      lastMessageIdRef.current = null;
       isPaginatingRef.current = false;
       paginationAnchorRef.current = null;
       paginationFirstMessageIdRef.current = null;
-      previousMessagesRef.current = { room, count: messages.length, lastMessageKey };
-      return;
-    }
+    }, [room]);
 
-    const previousMessages = previousMessagesRef.current;
-    const appendedMessage = messages.length > previousMessages.count
-      && lastMessageKey !== previousMessages.lastMessageKey;
-    previousMessagesRef.current = { room, count: messages.length, lastMessageKey };
+    useLayoutEffect(() => {
+      if (roomLoading) {
+        roomLoadingObservedRef.current = true;
+        return;
+      }
 
-    if (appendedMessage && (lastMessage?.senderUid === user.uid || shouldStickToBottomRef.current)) {
-      shouldStickToBottomRef.current = true;
-      performScrollSnap();
-    }
-  }, [messages, room, roomLoading, user.uid]);
+      const lastMessage = messages[messages.length - 1];
+      const lastMessageKey =
+        lastMessage?.clientMessageId ||
+        lastMessage?._id ||
+        lastMessage?.id ||
+        null;
 
-  const handleTriggerHistoryFetch = async () => {
-    const container = scrollContainerRef.current;
-    if (container && !isFetchingMore && hasMorePages) {
-      const containerTop = container.getBoundingClientRect().top;
-      const anchorElement = Array.from(container.querySelectorAll('[data-message-id]'))
-        .find((element) => element.getBoundingClientRect().bottom > containerTop);
-      paginationAnchorRef.current = anchorElement
-        ? { element: anchorElement, top: anchorElement.getBoundingClientRect().top }
-        : null;
-      paginationFirstMessageIdRef.current = messages[0]?._id || messages[0]?.id || null;
-      isPaginatingRef.current = true;
+      if (isInitialRoomLoadRef.current) {
+        const messagesBelongToRoom =
+          messages.length > 0 &&
+          messages.every((message) => !message.room || message.room === room);
+        if (!roomLoadingObservedRef.current && !messagesBelongToRoom) return;
+        isInitialRoomLoadRef.current = false;
+        roomLoadingObservedRef.current = false;
+        previousMessagesRef.current = {
+          room,
+          count: messages.length,
+          lastMessageKey,
+        };
+        shouldStickToBottomRef.current = true;
+        if (messages.length > 0) performScrollSnap();
+        return;
+      }
 
-      const addedMessages = await loadMoreMessages();
-      if (!addedMessages) {
+      const container = scrollContainerRef.current;
+      if (!container || previousMessagesRef.current.room !== room) return;
+
+      if (isPaginatingRef.current) {
+        const firstMessage = messages[0];
+        const firstMessageId = firstMessage?._id || firstMessage?.id || null;
+        if (firstMessageId === paginationFirstMessageIdRef.current) return;
+
+        const anchor = paginationAnchorRef.current;
+        if (anchor?.element?.isConnected) {
+          const currentTop = anchor.element.getBoundingClientRect().top;
+          container.scrollTop += currentTop - anchor.top;
+        }
+
         isPaginatingRef.current = false;
         paginationAnchorRef.current = null;
         paginationFirstMessageIdRef.current = null;
+        previousMessagesRef.current = {
+          room,
+          count: messages.length,
+          lastMessageKey,
+        };
+        return;
       }
-    }
-  };
 
-  function extractUrl(text) {
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    const matches = text.match(urlRegex);
-    return matches ? matches[0] : null;
-  }
+      const previousMessages = previousMessagesRef.current;
+      const appendedMessage =
+        messages.length > previousMessages.count &&
+        lastMessageKey !== previousMessages.lastMessageKey;
+      previousMessagesRef.current = {
+        room,
+        count: messages.length,
+        lastMessageKey,
+      };
 
-  const filteredMessages = messages.filter(
-    (msg) => !searchQuery.trim() || (msg.text && msg.text.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
-
-  const handleScroll = async (e) => {
-    const container = e.currentTarget;
-    const { scrollTop } = container;
-    const distanceFromBottom = container.scrollHeight - scrollTop - container.clientHeight;
-    shouldStickToBottomRef.current = distanceFromBottom < 160;
-
-    if (scrollTop <= 20 && typeof loadMoreMessages === 'function' && !searchQuery.trim() && !isFetchingMoreRef.current && filteredMessages.length > 0) {
-      lastMessageIdRef.current = filteredMessages[0]._id || filteredMessages[0].id;
-      isFetchingMoreRef.current = true;
-      setIsFetchingMore(true);
-      try {
-        await handleTriggerHistoryFetch();
-      } catch (error) {
-        console.error("Failed to load more messages:", error);
-      } finally {
-        isFetchingMoreRef.current = false;
-        setIsFetchingMore(false);
+      if (
+        appendedMessage &&
+        (lastMessage?.senderUid === user.uid || shouldStickToBottomRef.current)
+      ) {
+        shouldStickToBottomRef.current = true;
+        performScrollSnap();
       }
-    }
+    }, [messages, room, roomLoading, user.uid]);
 
-    if (openMenuId) {
-      setOpenMenuId(null);
-    }
-  };
+    const handleTriggerHistoryFetch = async () => {
+      const container = scrollContainerRef.current;
+      if (container && !isFetchingMore && hasMorePages) {
+        const containerTop = container.getBoundingClientRect().top;
+        const anchorElement = Array.from(
+          container.querySelectorAll("[data-message-id]"),
+        ).find(
+          (element) => element.getBoundingClientRect().bottom > containerTop,
+        );
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (!openMenuId && !openReactionMenuId) return;
-      const clickedInsideMenu = event.target.closest(`.${styles.dropdownMenu}`) ||
-        event.target.closest(`.${styles.dropdownMenuFlipped}`) ||
-        event.target.closest(`.${styles.messageActionTrigger}`) ||
-        event.target.closest(`.${styles.dropdownQuickReactions}`) ||
-        event.target.closest(`.${styles.fullEmojiPickerOverlay}`) ||
-        event.target.closest(`.${styles.emojiToggle}`);
-      if (!clickedInsideMenu) {
+        paginationAnchorRef.current = anchorElement
+          ? {
+              element: anchorElement,
+              top: anchorElement.getBoundingClientRect().top,
+            }
+          : null;
+        paginationFirstMessageIdRef.current =
+          messages[0]?._id || messages[0]?.id || null;
+        isPaginatingRef.current = true;
+
+        const addedMessages = await loadMoreMessages();
+        if (!addedMessages) {
+          isPaginatingRef.current = false;
+          paginationAnchorRef.current = null;
+          paginationFirstMessageIdRef.current = null;
+        }
+      }
+    };
+
+    // Anti-Lag: Memoized URL extraction dictionary prevents continuous layout checking loops
+    const urlMap = useMemo(() => {
+      const cache = {};
+      messages.forEach((msg) => {
+        const msgId = msg._id || msg.id;
+        if (msgId && msg.text) {
+          cache[msgId] = extractUrl(msg.text);
+        }
+      });
+      return cache;
+    }, [messages]);
+
+    const filteredMessages = useMemo(() => {
+      return messages.filter(
+        (msg) =>
+          !searchQuery.trim() ||
+          (msg.text &&
+            msg.text.toLowerCase().includes(searchQuery.toLowerCase())),
+      );
+    }, [messages, searchQuery]);
+
+    const handleScroll = async (e) => {
+      const container = e.currentTarget;
+      const { scrollTop } = container;
+      const distanceFromBottom =
+        container.scrollHeight - scrollTop - container.clientHeight;
+      shouldStickToBottomRef.current = distanceFromBottom < 160;
+
+      if (
+        scrollTop <= 20 &&
+        typeof loadMoreMessages === "function" &&
+        !searchQuery.trim() &&
+        !isFetchingMoreRef.current &&
+        filteredMessages.length > 0
+      ) {
+        const firstMsg = filteredMessages[0];
+        lastMessageIdRef.current = firstMsg._id || firstMsg.id || null;
+        isFetchingMoreRef.current = true;
+        setIsFetchingMore(true);
+        try {
+          await handleTriggerHistoryFetch();
+        } catch (error) {
+          console.error("Failed to load more messages:", error);
+        } finally {
+          isFetchingMoreRef.current = false;
+          setIsFetchingMore(false);
+        }
+      }
+
+      if (openMenuId) {
         setOpenMenuId(null);
-        setOpenReactionMenuId(null);
-        setActivePickerMessageId(null);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [openMenuId, openReactionMenuId, activePickerMessageId, setOpenMenuId]);
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (!openMenuId && !openReactionMenuId) return;
+        const target = event.target;
+        const clickedInsideMenu =
+          target.closest(`.${styles.dropdownMenu}`) ||
+          target.closest(`.${styles.dropdownMenuFlipped}`) ||
+          target.closest(`.${styles.messageActionTrigger}`) ||
+          target.closest(`.${styles.dropdownQuickReactions}`) ||
+          target.closest(`.${styles.fullEmojiPickerOverlay}`) ||
+          target.closest(`.${styles.emojiToggle}`);
 
-  return (
-    <>
-      <div
-        ref={scrollContainerRef}
-        onScroll={handleScroll}
-        className={styles.messageFeed}
-        style={{ overflowY: 'auto', height: '100%', position: 'relative' }}
-      >
-        {roomLoading ? (
-          <div className={styles.roomLoaderContainer}>
-            <div className={styles.spinner} />
-            <p className={styles.modalDescription} style={{ marginTop: '10px' }}>Switching to #{room}...</p>
-          </div>
-        ) : selectedImage ? (
-          <div className={styles.previewContainer}>
-            <img src={selectedImage} alt="Upload preview" className={styles.previewImage} />
-            <button
-              type="button"
-              onClick={() => !isSendingImage && setSelectedImage(null)}
-              className={styles.removePreviewBtn}
-              disabled={isSendingImage}
-            >
-              ×
-            </button>
-          </div>
-        ) : (
-          <div className={styles.messagesListContainer}>
-            {isFetchingMore && (
-              <div className={styles.topLoaderContainer} style={{ textAlign: 'center', padding: '12px 0' }}>
-                <div className={styles.spinner} style={{ width: '20px', height: '20px', margin: '0 auto' }} />
-              </div>
-            )}
+        if (!clickedInsideMenu) {
+          setOpenMenuId(null);
+          setOpenReactionMenuId(null);
+          setActivePickerMessageId(null);
+        }
+      };
 
-            {filteredMessages.map((msg, index) => {
-              const msgId = msg._id || msg.id;
-              const isMe = msg.senderUid === user.uid;
-              const timeString = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
-              const isMenuOpen = openMenuId === msgId;
-              const isNearBottom = index >= filteredMessages.length - 3;
-              const isFirstFew = index < 3;
-              let menuClass = styles.dropdownMenu;
-              if (!isFirstFew && isNearBottom) {
-                menuClass = styles.dropdownMenuFlipped;
-              }
-              const prevMsg = filteredMessages[index - 1];
-              const isSameSender = prevMsg && prevMsg.senderUid === msg.senderUid;
-              const timeDiff = prevMsg && msg.createdAt && prevMsg.createdAt
-                ? new Date(msg.createdAt) - new Date(prevMsg.createdAt)
-                : 0;
-              const isWithinTimeWindow = timeDiff < 5 * 60 * 1000;
-              const showHeader = (!isSameSender && !isWithinTimeWindow);
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }, [openMenuId, openReactionMenuId, activePickerMessageId, setOpenMenuId]);
 
-              return (
-                
+    return (
+      <>
+        <div
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+          className={styles.messageFeed}
+          style={{ overflowY: "auto", height: "100%", position: "relative" }}
+        >
+          {roomLoading ? (
+            <div className={styles.roomLoaderContainer}>
+              <div className={styles.spinner} />
+              <p
+                className={styles.modalDescription}
+                style={{ marginTop: "10px" }}
+              >
+                Switching to #{room}...
+              </p>
+            </div>
+          ) : selectedImage ? (
+            <div className={styles.previewContainer}>
+              <img
+                src={selectedImage}
+                alt="Upload preview"
+                className={styles.previewImage}
+              />
+              <button
+                type="button"
+                onClick={() => !isSendingImage && setSelectedImage(null)}
+                className={styles.removePreviewBtn}
+                disabled={isSendingImage}
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <div className={styles.messagesListContainer}>
+              {isFetchingMore && (
                 <div
-                  key={msgId || index}
-                  data-message-id={msgId}
-                  className={styles.messageRow}
-                  style={{
-                    justifyContent: isMe ? 'flex-end' : 'flex-start',
-                    position: 'relative',
-                    zIndex: isMenuOpen || openReactionMenuId === msgId ? 100 : 1
-                  }}
+                  className={styles.topLoaderContainer}
+                  style={{ textAlign: "center", padding: "12px 0" }}
                 >
-                  <div className={styles.messageContentWrapper} style={{ flexDirection: isMe ? 'row-reverse' : 'row' }}>
-                    {!isMe && (
-                      <div style={{ width: '32px', flexShrink: 0 }}>
-                        {showHeader ? (
-                          <img src={msg.avatar || 'https://placeholder.com'} alt="" className={styles.messageAvatar} />
-                        ) : null}
-                      </div>
-                    )}
-                    <div>
-                      {/* Horizontal Anchor Wrapper - Ensures side-by-side docking structure */}
-                      <div className={`${styles.messageBubbleRowAnchor} ${isMe ? styles.messageBubbleRowAnchorMe : styles.messageBubbleRowAnchorOther}`}>
+                  <div
+                    className={styles.spinner}
+                    style={{ width: "20px", height: "20px", margin: "0 auto" }}
+                  />
+                </div>
+              )}
 
-                        {/* Vertical Column wrapper container stack for text cells */}
-                        <div className={`${styles.messageBubbleColumn} ${isMe ? styles.messageBubbleColumnMe : styles.messageBubbleColumnOther}`}>
-                          {!isMe && showHeader && <small className={styles.messageSenderName}>{msg.sender}</small>}
+              {filteredMessages.map((msg, index) => {
+                const msgId = msg._id || msg.id || "temp-" + index;
+                const isMe = msg.senderUid === user.uid;
+                const timeString = msg.createdAt
+                  ? new Date(msg.createdAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "";
+                const isMenuOpen = openMenuId === msgId;
+                const isNearBottom = index >= filteredMessages.length - 3;
+                const isFirstFew = index < 3;
+                let menuClass = styles.dropdownMenu;
+                if (!isFirstFew && isNearBottom) {
+                  menuClass = styles.dropdownMenuFlipped;
+                }
+                const prevMsg = filteredMessages[index - 1];
+                const isSameSender =
+                  prevMsg && prevMsg.senderUid === msg.senderUid;
+                const timeDiff =
+                  prevMsg && msg.createdAt && prevMsg.createdAt
+                    ? new Date(msg.createdAt).getTime() -
+                      new Date(prevMsg.createdAt).getTime()
+                    : 0;
+                const isWithinTimeWindow = timeDiff < 5 * 60 * 1000;
+                const showHeader = !isSameSender && !isWithinTimeWindow;
 
-                          <div
-                            className={`${styles.messageBubbleBase} ${isMe ? styles.messageBubbleMe : styles.messageBubbleOther}`}
-                            style={{ position: 'relative', paddingRight: msgId ? '28px' : '14px' }}
-                          >
-                            <div className={styles.messageText}>
-                              {msg.image && (
-                                <img
-                                  src={msg.image}
-                                  alt="Sent asset"
-                                  className={styles.chatImage}
-                                  onLoad={keepFeedAtBottomAfterLayoutChange}
-                                  onClick={() => setActiveLightboxImage(msg.image)}
-                                />
-                              )}
-                              {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                                <div className={styles.reactionBadgesRow}>
-                                  {Object.entries(msg.reactions).map(([emoji, uids]) => {
-                                    if (!uids || uids.length === 0) return null;
-
-                                    const hasIReacted = uids.includes(user.uid);
-                                    return (
-                                      <button
-                                        key={emoji}
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          // Toggles reaction off if already clicked
-                                          handleToggleReaction(msgId, emoji);
-                                        }}
-                                        className={`${styles.reactionBadgeBtn} ${hasIReacted ? styles.reactionBadgeActive : ''}`}
-                                      >
-                                        <span className={styles.reactionEmoji}>{emoji}</span>
-                                        {uids.length > 1 && <span className={styles.reactionCount}>{uids.length}</span>}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                              {(() => {
-                                const url = extractUrl(msg.text);
-                                return url ? (
-                                  <div className={styles.linkPreviewCard} onClick={() => window.open(url, '_blank')}>
-                                    <div className={styles.linkPreviewContent}>
-                                      <span className={styles.linkDomain}>{new URL(url).hostname}</span>
-                                      <p className={styles.linkTitle}>{url}</p>
-                                    </div>
-                                  </div>
-                                ) : null;
-                              })()}
-                              {msg.audio && <VoiceMessagePlayer audioSrc={msg.audio} />}
-                              <div className={styles.messageFooterRow}>
-                                <span>
-                                  <ExpandableText
-                                    text={msg.text}
-                                    highlightText={highlightText}
-                                    searchQuery={searchQuery}
-                                  />
-                                  {msg.edited && <small className={styles.editedIndicatorTag}> (edited)</small>}
-                                </span>
-                                <span className={isMe ? styles.messageTimestampMe : styles.messageTimestampOther}>{timeString}</span>
-                              </div>
-                            </div>
-
-                            {msgId && (
-                              <div
-                                className={`${styles.messageActionTrigger} ${isMenuOpen ? styles.forceVisible : ''}`}
-                                style={{ position: 'absolute', top: '6px', right: '6px' }}
-                              >
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenMenuId(isMenuOpen ? null : msgId);
-                                  }}
-                                  className={styles.optionsButton}
-                                  title="Message options"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" style={{ transform: isNearBottom ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}>
-                                    <path fillRule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708" />
-                                  </svg>
-                                </button>
-                                {isMenuOpen && (
-                                  <div className={menuClass} style={{ padding: 0 }}>
-                                    {isMe && (
-                                      <>
-                                        <button onClick={() => { setOpenMenuId(null); setDeleteModalMessageId(msgId); }} className={styles.dropdownItemDelete}>
-                                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z" /><path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z" /></svg>
-                                          <span>Delete</span>
-                                        </button>
-                                        <button onClick={() => { setOpenMenuId(null); setEditingMessageId(msgId); setEditingText(msg.text); }} className={styles.dropdownItemEdit}>
-                                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="m13.498.795.149-.149a1.207 1.207 0 1 1 1.707 1.708l-.149.148a1.5 1.5 0 0 1-.059 2.059L4.854 14.854a.5.5 0 0 1-.233.131l-4 1a.5.5 0 0 1-.606-.606l1-4a.5.5 0 0 1 .131-.232l9.642-9.642a.5.5 0 0 0-.642.056L6.854 4.854a.5.5 0 1 1-.708-.708L9.44.854A1.5 1.5 0 0 1 11.5.796a1.5 1.5 0 0 1 1.998-.001m-.644.766a.5.5 0 0 0-.707 0L1.95 11.756l-.764 3.057 3.057-.764L14.44 3.854a.5.5 0 0 0 0-.708z" /></svg>
-                                          <span>Edit</span>
-                                        </button>
-                                      </>
-                                    )}
-                                    <button
-                                      className={styles.dropdownItemInfo}
-                                      onClick={() => {
-                                        setInfoModalMessage(msg);
-                                        setOpenMenuId(null);
-                                      }}
-                                      style={{ marginBottom: 0 }}
-                                    >
-                                      <svg xmlns="http://w3.org" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
-                                        <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1,1,0 1,1-2,0 1,1 0 0,1 2,0" />
-                                      </svg>
-                                      <span>Info</span>
-                                    </button>
-                                    <button onClick={() => { setOpenMenuId(null); setActiveThreadMessage(msg); }} className={styles.threadReplyTriggerBtn} title="Reply in thread">
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12.793a.5.5 0 0 0 .854.353l2.853-2.853A1 1 0 0 1 4.414 12H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z" /><path d="M3 3.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5M3 6a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9A.5.5 0 0 1 3 6m0 2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5" /></svg>
-                                      <span>Thread</span>
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
+                return (
+                  <div
+                    key={msgId}
+                    data-message-id={msgId}
+                    className={styles.messageRow}
+                    style={{
+                      justifyContent: isMe ? "flex-end" : "flex-start",
+                      position: "relative",
+                      zIndex:
+                        isMenuOpen || openReactionMenuId === msgId ? 100 : 1,
+                    }}
+                  >
+                    <div
+                      className={styles.messageContentWrapper}
+                      style={{ flexDirection: isMe ? "row-reverse" : "row" }}
+                    >
+                      {!isMe && (
+                        <div style={{ width: "32px", flexShrink: 0 }}>
+                          {showHeader ? (
+                            <img
+                              src={msg.avatar || "https://placeholder.com"}
+                              alt=""
+                              className={styles.messageAvatar}
+                            />
+                          ) : null}
                         </div>
+                      )}
+                      <div>
+                        <div
+                          className={
+                            styles.messageBubbleRowAnchor +
+                            " " +
+                            (isMe
+                              ? styles.messageBubbleRowAnchorMe
+                              : styles.messageBubbleRowAnchorOther)
+                          }
+                        >
+                          <div
+                            className={
+                              styles.messageBubbleColumn +
+                              " " +
+                              (isMe
+                                ? styles.messageBubbleColumnMe
+                                : styles.messageBubbleColumnOther)
+                            }
+                          >
+                            {!isMe && showHeader && (
+                              <small className={styles.messageSenderName}>
+                                {msg.sender}
+                              </small>
+                            )}
 
-                        {/* Clean wrapper for smile trigger - direct horizontal sibling to the text stack columns */}
-                        {msgId && (
-                          <div className={styles.reactionToggleContainer}>
-                            <button
-                              type="button"
-                              className={`${styles.emojiToggle} ${openReactionMenuId === msgId ? styles.forceVisible : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(null);
-                                setOpenReactionMenuId(openReactionMenuId === msgId ? null : msgId);
+                            <div
+                              className={
+                                styles.messageBubbleBase +
+                                " " +
+                                (isMe
+                                  ? styles.messageBubbleMe
+                                  : styles.messageBubbleOther)
+                              }
+                              style={{
+                                position: "relative",
+                                paddingRight:
+                                  msg._id || msg.id ? "28px" : "14px",
                               }}
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-emoji-smile" viewBox="0 0 16 16">
-                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
-                                <path d="M4.285 9.567a.5.5 0 0 1 .683.183A3.5 3.5 0 0 0 8 11.5a3.5 3.5 0 0 0 3.032-1.75.5.5 0 1 1 .866.5A4.5 4.5 0 0 1 8 12.5a4.5 4.5 0 0 1-3.898-2.25.5.5 0 0 1 .183-.683M7 6.5C7 7.328 6.552 8 6 8s-1-.672-1-1.5S5.448 5 6 5s1 .672 1 1.5m4 0c0 .828-.448 1.5-1 1.5s-1-.672-1-1.5S9.448 5 10 5s1 .672 1 1.5" />
-                              </svg>
-                            </button>
+                              <div className={styles.messageText}>
+                                {msg.image && (
+                                  <img
+                                    src={msg.image}
+                                    alt="Sent asset"
+                                    className={styles.chatImage}
+                                    onLoad={keepFeedAtBottomAfterLayoutChange}
+                                    onClick={() =>
+                                      setActiveLightboxImage(msg.image || null)
+                                    }
+                                  />
+                                )}
+                                {msg.reactions &&
+                                  Object.keys(msg.reactions).length > 0 && (
+                                    <div className={styles.reactionBadgesRow}>
+                                      {Object.entries(msg.reactions).map(
+                                        ([emoji, uids]) => {
+                                          if (!uids || uids.length === 0)
+                                            return null;
+                                          const hasIReacted = uids.includes(
+                                            user.uid,
+                                          );
+                                          return (
+                                            <button
+                                              key={emoji}
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleToggleReaction(
+                                                  msgId,
+                                                  emoji,
+                                                );
+                                              }}
+                                              className={
+                                                styles.reactionBadgeBtn +
+                                                " " +
+                                                (hasIReacted
+                                                  ? styles.reactionBadgeActive
+                                                  : "")
+                                              }
+                                            >
+                                              <span
+                                                className={styles.reactionEmoji}
+                                              >
+                                                {emoji}
+                                              </span>
+                                              {uids.length > 1 && (
+                                                <span
+                                                  className={
+                                                    styles.reactionCount
+                                                  }
+                                                >
+                                                  {uids.length}
+                                                </span>
+                                              )}
+                                            </button>
+                                          );
+                                        },
+                                      )}
+                                    </div>
+                                  )}
+                                {(() => {
+                                  const url = urlMap[msgId];
+                                  return url ? (
+                                    <div
+                                      className={styles.linkPreviewCard}
+                                      onClick={() => window.open(url, "_blank")}
+                                    >
+                                      <div
+                                        className={styles.linkPreviewContent}
+                                      >
+                                        <span className={styles.linkDomain}>
+                                          {new URL(url).hostname}
+                                        </span>
+                                        <p className={styles.linkTitle}>
+                                          {url}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  ) : null;
+                                })()}
+                                {msg.audio && (
+                                  <VoiceMessagePlayer
+                                    audioSrc={msg.audio}
+                                    styles={styles}
+                                  />
+                                )}
+                                <div className={styles.messageFooterRow}>
+                                  <span>
+                                    <ExpandableText
+                                      text={msg.text}
+                                      highlightText={highlightText}
+                                      searchQuery={searchQuery}
+                                    />
+                                    {msg.edited && (
+                                      <small
+                                        className={styles.editedIndicatorTag}
+                                      >
+                                        {" "}
+                                        (edited)
+                                      </small>
+                                    )}
+                                  </span>
+                                  <span
+                                    className={
+                                      isMe
+                                        ? styles.messageTimestampMe
+                                        : styles.messageTimestampOther
+                                    }
+                                  >
+                                    {timeString}
+                                  </span>
+                                </div>
+                              </div>
 
-                            {openReactionMenuId === msgId && (
-                              <div className={styles.dropdownQuickReactions}>
-                                {/* 1. standard quick emojis loop */}
-                                {['👍', '❤️'].map((emoji) => (
+                              {(msg._id || msg.id) && (
+                                <div
+                                  className={
+                                    styles.messageActionTrigger +
+                                    " " +
+                                    (isMenuOpen ? styles.forceVisible : "")
+                                  }
+                                  style={{
+                                    position: "absolute",
+                                    top: "6px",
+                                    right: "6px",
+                                  }}
+                                >
                                   <button
-                                    key={emoji}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenMenuId(isMenuOpen ? null : msgId);
+                                    }}
+                                    className={styles.optionsButton}
+                                    title="Message options"
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      width="14"
+                                      height="14"
+                                      fill="currentColor"
+                                      viewBox="0 0 16 16"
+                                      style={{
+                                        transform: isNearBottom
+                                          ? "rotate(180deg)"
+                                          : "rotate(0deg)",
+                                        transition: "transform 0.2s ease",
+                                      }}
+                                    >
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"
+                                      />
+                                    </svg>
+                                  </button>
+                                  {isMenuOpen && (
+                                    <div
+                                      className={menuClass}
+                                      style={{ padding: 0 }}
+                                    >
+                                      {isMe && (
+                                        <>
+                                          <button
+                                            onClick={() => {
+                                              setOpenMenuId(null);
+                                              setDeleteModalMessageId(msgId);
+                                            }}
+                                            className={
+                                              styles.dropdownItemDelete
+                                            }
+                                          >
+                                            <svg
+                                              xmlns="http://www.w3.org/2000/svg"
+                                              width="16"
+                                              height="16"
+                                              fill="currentColor"
+                                              viewBox="0 0 16 16"
+                                            >
+                                              <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z" />
+                                              <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z" />
+                                            </svg>
+                                            <span>Delete</span>
+                                          </button>
+                                          <button
+                                            onClick={() => {
+                                              setOpenMenuId(null);
+                                              setEditingMessageId(msgId);
+                                              setEditingText(msg.text || "");
+                                            }}
+                                            className={styles.dropdownItemEdit}
+                                          >
+                                            <svg
+                                              xmlns="http://www.w3.org/2000/svg"
+                                              width="16"
+                                              height="16"
+                                              fill="currentColor"
+                                              viewBox="0 0 16 16"
+                                            >
+                                              <path d="m13.498.795.149-.149a1.207 1.207 0 1 1 1.707 1.708l-.149.148a1.5 1.5 0 0 1-.059 2.059L4.854 14.854a.5.5 0 0 1-.233.131l-4 1a.5.5 0 0 1-.606-.606l1-4a.5.5 0 0 1 .131-.232l9.642-9.642a.5.5 0 0 0-.642.056L6.854 4.854a.5.5 0 1 1-.708-.708L9.44.854A1.5 1.5 0 0 1 11.5.796a1.5 1.5 0 0 1 1.998-.001m-.644.766a.5.5 0 0 0-.707 0L1.95 11.756l-.764 3.057 3.057-.764L14.44 3.854a.5.5 0 0 0 0-.708z" />
+                                            </svg>
+                                            <span>Edit</span>
+                                          </button>
+                                        </>
+                                      )}
+                                      <button
+                                        className={styles.dropdownItemInfo}
+                                        onClick={() => {
+                                          setInfoModalMessage(msg);
+                                          setOpenMenuId(null);
+                                        }}
+                                        style={{ marginBottom: 0 }}
+                                      >
+                                        <svg
+                                          xmlns="http://www.w3.org"
+                                          width="16"
+                                          height="16"
+                                          fill="currentColor"
+                                          viewBox="0 0 16 16"
+                                        >
+                                          <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
+                                          <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1,1,0 1,1-2,0 1,1 0 0,1 2,0" />
+                                        </svg>
+                                        <span>Info</span>
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setOpenMenuId(null);
+                                          setActiveThreadMessage(msg);
+                                        }}
+                                        className={styles.threadReplyTriggerBtn}
+                                        title="Reply in thread"
+                                      >
+                                        <svg
+                                          xmlns="http://www.w3.org/2000/svg"
+                                          width="16"
+                                          height="16"
+                                          fill="currentColor"
+                                          viewBox="0 0 16 16"
+                                        >
+                                          <path d="M14 1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4.414A2 2 0 0 0 3 11.586l-2 2V2a1 1 0 0 1 1-1zM2 0a2 2 0 0 0-2 2v12.793a.5.5 0 0 0 .854.353l2.853-2.853A1 1 0 0 1 4.414 12H14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2z" />
+                                          <path d="M3 3.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5M3 6a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9A.5.5 0 0 1 3 6m0 2.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5" />
+                                        </svg>
+                                        <span>Thread</span>
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {(msg._id || msg.id) && (
+                            <div className={styles.reactionToggleContainer}>
+                              <button
+                                type="button"
+                                className={
+                                  styles.emojiToggle +
+                                  " " +
+                                  (openReactionMenuId === msgId
+                                    ? styles.forceVisible
+                                    : "")
+                                }
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(null);
+                                  setOpenReactionMenuId(
+                                    openReactionMenuId === msgId ? null : msgId,
+                                  );
+                                }}
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="16"
+                                  height="16"
+                                  fill="currentColor"
+                                  className="bi bi-emoji-smile"
+                                  viewBox="0 0 16 16"
+                                >
+                                  <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
+                                  <path d="M4.285 9.567a.5.5 0 0 1 .683.183A3.5 3.5 0 0 0 8 11.5a3.5 3.5 0 0 0 3.032-1.75.5.5 0 1 1 .866.5A4.5 4.5 0 0 1 8 12.5a4.5 4.5 0 0 1-3.898-2.25.5.5 0 0 1 .183-.683M7 6.5C7 7.328 6.552 8 6 8s-1-.672-1-1.5S5.448 5 6 5s1 .672 1 1.5m4 0c0 .828-.448 1.5-1 1.5s-1-.672-1-1.5S9.448 5 10 5s1 .672 1 1.5" />
+                                </svg>
+                              </button>
+
+                              {openReactionMenuId === msgId && (
+                                <div className={styles.dropdownQuickReactions}>
+                                  {["👍", "❤️"].map((emoji) => (
+                                    <button
+                                      key={emoji}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleToggleReaction(msgId, emoji);
+                                        setOpenReactionMenuId(null);
+                                      }}
+                                      className={styles.quickReactionEmojiBtn}
+                                    >
+                                      {emoji}
+                                    </button>
+                                  ))}
+                                  <button
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      // Triggers your parent component state/database handler directly
-                                      handleToggleReaction(msgId, emoji);
-                                      setOpenReactionMenuId(null); // Close the bar after reacting
+                                      setOpenReactionMenuId(null);
+                                      setActivePickerMessageId(msgId);
                                     }}
                                     className={styles.quickReactionEmojiBtn}
+                                    style={{
+                                      color: "#fff",
+                                      fontSize: "18px",
+                                      fontWeight: "300",
+                                    }}
                                   >
-                                    {emoji}
+                                    +
                                   </button>
-                                ))}
-
-                                {/* 2. OPERATIONAL "+" BUTTON */}
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setOpenReactionMenuId(null); // Clear quick pill wrapper out of view
-                                    setActivePickerMessageId(msgId); // Direct launch trigger hook to open full panel matrix
-                                  }}
-                                  className={styles.quickReactionEmojiBtn}
-                                  style={{ color: '#fff', fontSize: '18px', fontWeight: '300' }}
-                                >
-                                  +
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-            <div ref={messagesEndRef} />
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
+
+        {activePickerMessageId && (
+          <div
+            className={styles.centralEmojiModalOverlay}
+            onClick={() => setActivePickerMessageId(null)}
+          >
+            <div
+              className={styles.centralEmojiModalCard}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                className={styles.closeEmojiModalBtn}
+                onClick={() => setActivePickerMessageId(null)}
+              >
+                <span className={styles.closeText}>×</span>
+              </button>
+              {(() => {
+                // 1. Force cast the component reference to bypass the strict JSX namespace mismatch
+                const PickerComponent = EmojiPicker;
+
+                return (
+                  <PickerComponent
+                    theme={Theme.DARK}
+                    lazyLoadEmojis={true}
+                    searchPlaceHolder="Search emojis..."
+                    width="100%"
+                    height={400}
+                    onEmojiClick={(emojiObject, event) => {
+                      event.stopPropagation();
+                      handleToggleReaction(
+                        activePickerMessageId,
+                        emojiObject.emoji,
+                      );
+                      setActivePickerMessageId(null);
+                    }}
+                  />
+                );
+              })()}
+            </div>
           </div>
         )}
-      </div>
-      {activePickerMessageId && (
-        <div
-          className={styles.centralEmojiModalOverlay}
-          onClick={() => setActivePickerMessageId(null)} // Clicking the blurred backdrop closes it
-          onTouchStart={() => setActivePickerMessageId(null)}
-        >
-          {/* Stops inner click events from closing the panel container background */}
-          <div className={styles.centralEmojiModalCard} onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className={styles.closeEmojiModalBtn}
-              onClick={() => setActivePickerMessageId(null)}
-              onTouchStart={() => setActivePickerMessageId(null)}
-              aria-label="Close emoji picker"
-            > <span className={styles.closeText}>
-                ×
-              </span>
-            </button>
-            <EmojiPicker
-              theme={Theme.DARK}
-              lazyLoadEmojis={true}
-              searchPlaceHolder="Search emojis..."
-              width="100%" // Expands responsively inside the card width
-              height={400}
-              onEmojiClick={(emojiObject, event) => {
-                event.stopPropagation();
-                // Applies reaction payload to the captured message tracking ID
-                handleToggleReaction(activePickerMessageId, emojiObject.emoji);
-                setActivePickerMessageId(null); // Close modal automatically upon selection
-              }}
-            />
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
+      </>
+    );
+  },
+  // Custom comparison rule: Stops rendering if structural prop parameters match historical context exactly
+  (prevProps, nextProps) => {
+    return (
+      prevProps.messages === nextProps.messages &&
+      prevProps.room === nextProps.room &&
+      prevProps.roomLoading === nextProps.roomLoading &&
+      prevProps.searchQuery === nextProps.searchQuery &&
+      prevProps.openMenuId === nextProps.openMenuId &&
+      prevProps.selectedImage === nextProps.selectedImage &&
+      prevProps.isSendingImage === nextProps.isSendingImage
+    );
+  },
+);
+
+export default ChatFeed;

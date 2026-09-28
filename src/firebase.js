@@ -8,7 +8,7 @@ const firebaseConfig = {
   storageBucket: "chatapp-7e398.firebasestorage.app",
   messagingSenderId: "566031305634",
   appId: "1:566031305634:web:3a67afa23774a4cac200fb",
-  measurementId: "G-R2VSL9L1HT"
+  measurementId: "G-R2VSL9L1HT",
 };
 
 const app = initializeApp(firebaseConfig);

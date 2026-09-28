@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
 export default function useLightbox() {
   const [activeLightboxImage, setActiveLightboxImage] = useState(null);
@@ -9,11 +9,11 @@ export default function useLightbox() {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape') setActiveLightboxImage(null);
+      if (event.key === "Escape") setActiveLightboxImage(null);
     };
 
-    if (activeLightboxImage) window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    if (activeLightboxImage) window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeLightboxImage]);
 
   const closeLightbox = () => {
@@ -24,7 +24,10 @@ export default function useLightbox() {
 
   const handleWheel = (event) => {
     event.preventDefault();
-    const nextScale = Math.min(Math.max(scale + (event.deltaY < 0 ? 0.1 : -0.1), 1), 4);
+    const nextScale = Math.min(
+      Math.max(scale + (event.deltaY < 0 ? 0.1 : -0.1), 1),
+      4,
+    );
     if (nextScale === 1) setPosition({ x: 0, y: 0 });
     setScale(nextScale);
   };
@@ -32,13 +35,19 @@ export default function useLightbox() {
   const handleMouseDown = (event) => {
     if (scale > 1) {
       setIsDragging(true);
-      setDragStart({ x: event.clientX - position.x, y: event.clientY - position.y });
+      setDragStart({
+        x: event.clientX - position.x,
+        y: event.clientY - position.y,
+      });
     }
   };
 
   const handleMouseMove = (event) => {
     if (isDragging && scale > 1) {
-      setPosition({ x: event.clientX - dragStart.x, y: event.clientY - dragStart.y });
+      setPosition({
+        x: event.clientX - dragStart.x,
+        y: event.clientY - dragStart.y,
+      });
     }
   };
 
