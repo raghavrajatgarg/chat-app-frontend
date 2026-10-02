@@ -27,6 +27,18 @@ export default function CallModal({
     }
   }, [callStatus, remoteStream]);
 
+  // Ring while the call is being placed / offered, stop once it connects.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (callStatus === "incoming" || callStatus === "calling") {
+      audio.play().catch(() => {});
+    } else {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+  }, [callStatus]);
+
   if (callStatus === "idle") return null;
 
   return (
@@ -53,7 +65,7 @@ export default function CallModal({
               muted
               className={styles.localVideo}
             />
-            <button className={styles.hangupBtn} onClick={onReject}>
+            <button className={styles.hangupBtn} onClick={() => onReject()}>
               End Call
             </button>
           </div>
@@ -68,11 +80,11 @@ export default function CallModal({
 
             <div className={styles.actions}>
               {callStatus === "incoming" && (
-                <button className={styles.acceptBtn} onClick={onAccept}>
+                <button className={styles.acceptBtn} onClick={() => onAccept()}>
                   Accept
                 </button>
               )}
-              <button className={styles.rejectBtn} onClick={onReject}>
+              <button className={styles.rejectBtn} onClick={() => onReject()}>
                 Decline / Hang Up
               </button>
             </div>

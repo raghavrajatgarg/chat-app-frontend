@@ -9,6 +9,7 @@ import {
 import { getMessaging, getToken } from "firebase/messaging";
 import { io } from "socket.io-client";
 import { auth, googleProvider } from "../firebase";
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
 const BACKEND_URL =
   import.meta.env.VITE_API_URL || "https://chat-app-backend-1yfa.onrender.com";
@@ -442,13 +443,58 @@ export default function useChatController({
       1500,
     );
   };
-  const handleGoogleLogin = async () => {
+// useChatController.js (Line 337 update)
+const handleGoogleLogin = async () => {
+  const isNativeMobile = window.navigator.userAgent.includes("Capacitor");
+
+  if (isNativeMobile) {
     try {
-      await signInWithPopup(auth, googleProvider);
+      // 1. Fetch your Web Client ID from your google-services.json file
+      // (Look for the client_id ending in ".apps.googleusercontent.com" where client_type is 3)
+      const WEB_CLIENT_ID = "566031305634-qqlhtd2vd6cohfb2nnsh463aksvc2ccm.apps.googleusercontent.com";
+
+      // 2. FIXED: You MUST pass the clientId object parameters inside initialize!
+      await GoogleAuth.initialize({
+        clientId: WEB_CLIENT_ID,
+        scopes: ['profile', 'email'],
+        grantOfflineAccess: true
+      });
+      
+      console.log("✅ Native Google Auth Plugin initialized successfully.");
+
+      // 3. Open the native Android account switcher sheet card
+      const googleUser = await GoogleAuth.signIn();
+      console.log("Logged in native Google user:", googleUser);
+
+      // The token property on this plugin is found inside the authentication block
+      const idToken = googleUser.authentication.idToken;
+
+      if (!idToken) {
+        throw new Error("Google Sign-In completed, but no ID Token was returned.");
+      }
+
+      // 4. Transmit this token to your backend Google auth controller route
+      const response = await axios.post(`${BACKEND_URL}/api/auth/google`, {
+        token: idToken
+      });
+
+      // 5. Update the framework memory space with the authenticated user object
+      if (response.data?.user) {
+        setUser(response.data.user);
+      }
+
     } catch (error) {
-      console.error("Login Failed:", error);
+      // Look at your logcat or remote console to see exactly what went wrong if it still fails
+      console.error("❌ Native Google Sign-In failed runtime catch:", error);
+      alert("Google Sign-In Error: " + (error.message || JSON.stringify(error)));
     }
-  };
+  } else {
+    // WEB FALLBACK: Keep your existing window/browser authentication flow intact here
+    // triggerExistingWebGoogleAuth();
+  }
+};
+
+
   const handleEmailLogin = async (email, password) =>
     signInWithEmailAndPassword(auth, email, password);
   const handleResendVerification = async () => {
@@ -719,6 +765,7 @@ export default function useChatController({
     BACKEND_URL,
     ROOMS_LIST,
     user,
+    setUser,
     loading,
     messages,
     activeUsers,

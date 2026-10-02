@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "566031305634-0o1e4db61s4sv1b30p86si0asmjj5rf7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.raghav.chatapp",
+            "certificate_hash": "1b7473eed5016ef9193f8ff409994a908ceb7b2d"
+          }
+        },
+        {
           "client_id": "566031305634-qqlhtd2vd6cohfb2nnsh463aksvc2ccm.apps.googleusercontent.com",
           "client_type": 3
         }

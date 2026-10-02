@@ -17,13 +17,22 @@ const messaging = firebase.messaging();
 // 🌟 Google automatically catches the background event payload and forces the mobile banner open!
 messaging.onBackgroundMessage((payload) => {
   console.log('🚀 Received background message payload context: ', payload);
-  
-  const notificationTitle = payload.notification.title;
+
+  // Data-only control messages (e.g. VoIP call rings) have no `notification`
+  // block - reading payload.notification below would throw and break the SW.
+  if (payload?.data?.isVoip === 'true') {
+    console.log('VoIP ring received on web - handled by the socket/native flow.');
+    return;
+  }
+
+  const notification = payload?.notification;
+  if (!notification) return;
+
   const notificationOptions = {
-    body: payload.notification.body,
-    icon: payload.data.icon || '/placeholder.com',
-    data: { url: payload.data.url }
+    body: notification.body,
+    icon: payload.data?.icon || '/placeholder.com',
+    data: { url: payload.data?.url }
   };
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  self.registration.showNotification(notification.title, notificationOptions);
 });

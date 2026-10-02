@@ -8,7 +8,6 @@ import {
 import styles from "../styles/App.module.scss";
 import { auth } from "../firebase";
 import MyIcon from "../assets/google.svg";
-
 const firebaseErrorMessages = {
   "auth/email-already-in-use":
     "An account already exists with this email. Try signing in instead.",

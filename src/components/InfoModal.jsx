@@ -8,13 +8,12 @@ export default function InfoModal({
 }) {
   const [searchTerm, setSearchTerm] = useState("");
 
-  if (!message) return null;
-
   // 1. Core Data Normalization: Hydrate raw User ID strings into complete profiles
   // 📁 File path: InfoModal.jsx (Around Line 12)
-  // 📁 File path: InfoModal.jsx (Around Line 12)
+  // NOTE: the `!message` guard must run *after* this hook so the hook order is
+  // stable across renders (calling useMemo conditionally throws at runtime).
   const hydratedReaders = useMemo(() => {
-    const rawIds = Array.isArray(message.readBy) ? message.readBy : [];
+    const rawIds = Array.isArray(message?.readBy) ? message.readBy : [];
 
     // Track unique user IDs we've already processed in this modal session
     const uniqueUserIds = new Set();
@@ -51,13 +50,15 @@ export default function InfoModal({
       );
 
       return {
-        uid: targetUid || `fallback-key-${Math.random()}`,
+        uid: targetUid,
         name: matchingProfile?.name || "Unknown User",
         avatar: matchingProfile?.avatar || "https://placeholder.com",
-        readAt: userIdOrObject?.readAt || message.createdAt || null,
+        readAt: userIdOrObject?.readAt || message?.createdAt || null,
       };
     });
-  }, [message.readBy, message.createdAt, allRegisteredUsers]);
+  }, [message, allRegisteredUsers]);
+
+  if (!message) return null;
 
   // 2. Filter profile records matching the query string search parameters
   const filteredReaders = hydratedReaders.filter((reader) => {

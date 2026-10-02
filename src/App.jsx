@@ -16,6 +16,7 @@ import useChatController from "./hooks/useChatController";
 import useLightbox from "./hooks/useLightbox";
 import useDemoController from "./hooks/useDemoController";
 import { PushNotifications } from "@capacitor/push-notifications";
+import { Capacitor } from "@capacitor/core";
 import axios from "axios";
 
 export default function App() {
@@ -23,6 +24,10 @@ export default function App() {
   const socketRef = useRef(null);
   const userRef = useRef(null);
   const call = useCall({ userRef, socketRef });
+  const callRef = useRef(call);
+  useEffect(() => {
+    callRef.current = call;
+  }, [call]);
   const chat = useChatController({
     callControllerRef: call.controllerRef,
     providedSocketRef: socketRef,
@@ -56,51 +61,166 @@ export default function App() {
       window.triggerStudioEditOverride = null;
     };
   }, [setSelectedImage]);
-   // Native Mobile Device Call Handler Integration
-  useEffect(() => {
-    const isNativeMobile = window.navigator.userAgent.includes("Capacitor");
+// Native Mobile Device Call Handler Integration
+useEffect(() => {
+  if (!Capacitor.isNativePlatform() || !chat.user) return undefined;
 
-    if (isNativeMobile && chat.user) {
-      // 1. Request hardware permission to receive incoming push requests
-      PushNotifications.requestPermissions().then((result) => {
-        if (result.receive === "granted") {
-          PushNotifications.register();
-        }
-      });
+  let cancelled = false;
+  let registrationListener;
+  let answerSubscription;
+  let declineSubscription;
 
-      // 2. Capture the unique FCM token and send it to your backend
-      PushNotifications.addListener("registration", (token) => {
-        console.log("FCM Device Token:", token.value);
-        
-        axios.post("http://chat-app-backend-1yfa.onrender.com/api/users/save-fcm-token", {
-          userId: chat.user.uid,
-          token: token.value
-        }).catch(err => console.error("Failed to map push token on backend:", err));
-      });
-
-      // 3. Dynamically import the native call kit only on mobile to prevent web crashes
-      let answerSubscription;
-      let declineSubscription;
-
-      import("@capgo/capacitor-incoming-call-kit").then(({ CapacitorIncomingCallKit }) => {
-        // Fired when the user hits "Answer" on the system lock-screen UI
-        answerSubscription = CapacitorIncomingCallKit.addListener("callAccepted", (data) => {
-          console.log("Hardware Call accepted, room ID:", data.callId);
-          call.acceptCall(); 
-        });
-
-        // Fired when the user hits "Decline" on the system lock-screen UI
-        declineSubscription = CapacitorIncomingCallKit.addListener("callDeclined", (data) => {
-          call.handleHangup();
-        });
-      }).catch(err => console.error("Failed to load native call kit plugin:", err));
-
-      return () => {
-        if (answerSubscription) answerSubscription.remove();
-        if (declineSubscription) declineSubscription.remove();
-      };
+  const setupNativeCalling = async () => {
+    // Install this before register(), which may emit the token immediately.
+    try {
+      registrationListener = await PushNotifications.addListener(
+        "registration",
+        async (token) => {
+          if (cancelled) return;
+          console.log("FCM Device Token:", token.value);
+          try {
+            const idToken = await chat.user.getIdToken();
+            await axios.post(
+              `${chat.BACKEND_URL}/api/users/save-fcm-token`,
+              { token: token.value },
+              { headers: { Authorization: `Bearer ${idToken}` } },
+            );
+          } catch (err) {
+            console.error("Failed to map push token on backend:", err);
+          }
+        },
+      );
+    } catch (error) {
+      console.warn("Failed to attach FCM registration listener:", error);
     }
-  }, [chat.user, call]);
+
+    // Request permission and register only after the token listener is ready.
+    try {
+      const result = await PushNotifications.requestPermissions();
+      if (result.receive === "granted") {
+        await PushNotifications.register();
+      }
+    } catch (error) {
+      console.warn("Push permission request failed:", error);
+    }
+
+    // 3. Load the native call kit. The plugin exports `IncomingCallKit`
+    //    (not `CapacitorIncomingCallKit`) - the wrong name here meant the
+    //    listeners below silently never attached.
+    let IncomingCallKit;
+    try {
+      ({ IncomingCallKit } = await import("@capgo/capacitor-incoming-call-kit"));
+    } catch (err) {
+      console.error("Failed to load native call kit plugin:", err);
+      return;
+    }
+    if (cancelled || !IncomingCallKit) return;
+
+    // Lock-screen / full-screen calls require notification + full-screen-intent
+    // permissions (Android 13 / 14).
+    // If notifications are blocked the OS silently swallows every call
+    // notification, so a blocked state must never fail quietly.
+    let notificationsBlocked = false;
+    try {
+      let permissions = await IncomingCallKit.checkPermissions();
+      if (
+        permissions.notifications === "prompt" ||
+        permissions.notifications === "prompt-with-rationale"
+      ) {
+        // Re-read the state: the pre-request snapshot is stale either way.
+        permissions = await IncomingCallKit.requestPermissions();
+      }
+      notificationsBlocked = permissions.notifications === "denied";
+
+      if (
+        permissions.fullScreenIntent === "prompt" ||
+        permissions.fullScreenIntent === "denied"
+      ) {
+        // Android 14+: opens Special app access -> Manage full screen intents.
+        // Without it the call still rings, but only as a heads-up banner.
+        await IncomingCallKit.requestFullScreenIntentPermission();
+      }
+    } catch (error) {
+      console.warn("Call kit permission check failed:", error);
+    }
+
+    // The plugin's event payload is { call, reason, source } and the metadata
+    // we passed to showIncomingCall lives under call.extra.
+    const startCallFromExtra = (extra) => {
+      if (!extra) return;
+      const fromUid = extra.fromUid || extra.roomId;
+      if (!fromUid) return;
+      // Older flow shipped the SDP in `extra.signalOffer`; the new flow keeps
+      // the offer on the server and the hook pulls it over the socket.
+      let signalOffer = null;
+      if (extra.signalOffer) {
+        try {
+          signalOffer = JSON.parse(extra.signalOffer);
+        } catch (error) {
+          console.warn("Ignoring unparsable native call offer:", error);
+        }
+      }
+      callRef.current.acceptCall({ fromUid, signalOffer });
+    };
+
+    // Native UI accept - works from the lock screen, background and cold boot
+    // (the plugin buffers the event until a listener is attached).
+    answerSubscription = await IncomingCallKit.addListener(
+      "callAccepted",
+      (event) => {
+        console.log("Native call accepted", event);
+        startCallFromExtra(event?.call?.extra);
+      },
+    );
+
+    declineSubscription = await IncomingCallKit.addListener(
+      "callDeclined",
+      (event) => {
+        callRef.current.handleHangup(event?.call?.extra?.fromUid);
+      },
+    );
+
+    // Cold-boot safety net: if the user answered while the app was killed the
+    // buffered event can be missed, so reconcile with the active call list.
+    try {
+      const { calls } = await IncomingCallKit.getActiveCalls();
+      const accepted = (calls || []).find(
+        (item) =>
+          item.state === "accepted" &&
+          (item.extra?.signalOffer ||
+            item.extra?.fromUid ||
+            item.extra?.roomId),
+      );
+      if (accepted && !cancelled) startCallFromExtra(accepted.extra);
+    } catch (error) {
+      console.warn("Failed to inspect active native calls:", error);
+    }
+
+    // Pre-grant camera/mic while the app is in the foreground so a cold-start
+    // lock-screen accept never stalls on a permission dialog it cannot show.
+    callRef.current.warmUpMediaPermissions?.();
+
+    if (notificationsBlocked && !cancelled) {
+      console.warn(
+        "Notifications are blocked; incoming calls cannot ring until the user enables them.",
+      );
+      alert(
+        "Incoming calls can't ring because notifications are blocked for this app.\n\n" +
+          "Open Settings > Apps > this app > Notifications and allow notifications, " +
+          "then allow \"Full screen notifications\" under Special app access.",
+      );
+    }
+  };
+
+  setupNativeCalling();
+
+  return () => {
+    cancelled = true;
+    registrationListener?.remove();
+    answerSubscription?.remove();
+    declineSubscription?.remove();
+  };
+}, [chat.user, chat.BACKEND_URL]);
 
 
   if (chat.loading && !isDemo)
