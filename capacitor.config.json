@@ -3,10 +3,9 @@
   "appName": "chat-app-frontend",
   "webDir": "dist",
   "plugins": {
-    "GoogleAuth": {
-      "scopes": ["profile", "email"],
-      "serverClientId": "566031305634-qqlhtd2vd6cohfb2nnsh463aksvc2ccm.apps.googleusercontent.com",
-      "forceCodeForRefreshToken": true
+    "FirebaseAuthentication": {
+      "skipNativeAuth": true,
+      "providers": ["google.com"]
     }
   }
 }
