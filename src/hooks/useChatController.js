@@ -43,6 +43,7 @@ export default function useChatController({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedAttachment, setSelectedAttachment] = useState(null);
   const isSendingImage = false;
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingText, setEditingText] = useState("");
@@ -63,6 +64,7 @@ export default function useChatController({
   const roomRef = useRef(room);
   const searchInputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const attachmentInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
   const activeThreadMessageRef = useRef(null);
@@ -450,7 +452,9 @@ export default function useChatController({
 const handleGoogleLogin = async () => {
   try {
     if (Capacitor.isNativePlatform()) {
-      const result = await FirebaseAuthentication.signInWithGoogle();
+      const result = await FirebaseAuthentication.signInWithGoogle({
+        useCredentialManager: false,
+      });
       const googleIdToken = result.credential?.idToken;
       if (!googleIdToken) {
         throw new Error("Google Sign-In did not return an ID token.");
@@ -500,7 +504,7 @@ const handleGoogleLogin = async () => {
   const handleSendMessage = async (event) => {
     event.preventDefault();
     if (
-      (!newMessage.trim() && !selectedImage) ||
+      (!newMessage.trim() && !selectedImage && !selectedAttachment) ||
       !socketRef.current ||
       isSending
     )
@@ -510,6 +514,14 @@ const handleGoogleLogin = async () => {
       const imageUrl = selectedImage?.startsWith("data:")
         ? await uploadMedia(selectedImage, "chat-image.jpg")
         : selectedImage;
+      const attachment = selectedAttachment
+        ? {
+            url: await uploadMedia(selectedAttachment, selectedAttachment.name),
+            name: selectedAttachment.name,
+            type: selectedAttachment.type || "application/octet-stream",
+            size: selectedAttachment.size,
+          }
+        : null;
       const clientMessageId = `client-${Date.now()}-${Math.random()}`;
       const text = newMessage.trim() || "\u200B";
       const optimisticMessage = {
@@ -519,6 +531,7 @@ const handleGoogleLogin = async () => {
         sender: user.displayName || user.email,
         senderUid: user.uid,
         image: imageUrl || null,
+        attachment,
         avatar: user.photoURL,
         room,
         createdAt: new Date(),
@@ -526,10 +539,11 @@ const handleGoogleLogin = async () => {
       };
       setNewMessage("");
       setSelectedImage(null);
+      setSelectedAttachment(null);
       setMessages((prev) => [...prev, optimisticMessage]);
       socketRef.current.emit(
         "send_message",
-        { clientMessageId, text, image: imageUrl || null, room },
+        { clientMessageId, text, image: imageUrl || null, attachment, room },
         (response) => {
           if (!response?.success)
             setSendError(response?.error || "Message could not be saved.");
@@ -537,7 +551,7 @@ const handleGoogleLogin = async () => {
       );
     } catch (error) {
       setSendError(error.message || "Could not upload this image.");
-      console.error("Failed to upload image:", error);
+      console.error("Failed to upload message media:", error);
     } finally {
       setIsSending(false);
     }
@@ -762,6 +776,8 @@ const handleGoogleLogin = async () => {
     setShowScrollBtn,
     selectedImage,
     setSelectedImage,
+    selectedAttachment,
+    setSelectedAttachment,
     isSendingImage,
     editingMessageId,
     setEditingMessageId,
@@ -783,6 +799,7 @@ const handleGoogleLogin = async () => {
     setThreadInput,
     searchInputRef,
     fileInputRef,
+    attachmentInputRef,
     messagesEndRef,
     socketRef,
     isPrivateRoom,

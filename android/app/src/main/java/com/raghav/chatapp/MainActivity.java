@@ -1,6 +1,9 @@
 package com.raghav.chatapp;
 
 import android.os.Bundle;
+import android.content.SharedPreferences;
+import android.content.Intent;
+import android.provider.Settings;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -22,6 +25,18 @@ public class MainActivity extends BridgeActivity {
     public void onResume() {
         super.onResume();
         AppForegroundState.setForeground(true);
+        SharedPreferences preferences = getSharedPreferences(
+            CallConnectionPlugin.CALL_SETTINGS_PREFS,
+            MODE_PRIVATE
+        );
+        if (preferences.getBoolean(CallConnectionPlugin.OPEN_NOTIFICATION_SETTINGS_ON_RESUME, false)) {
+            preferences.edit().remove(CallConnectionPlugin.OPEN_NOTIFICATION_SETTINGS_ON_RESUME).apply();
+            new android.os.Handler(getMainLooper()).post(() -> {
+                Intent settingsIntent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                settingsIntent.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+                startActivity(settingsIntent);
+            });
+        }
     }
 
     @Override

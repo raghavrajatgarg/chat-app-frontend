@@ -596,6 +596,45 @@ const ChatFeed = React.memo(
                                     }
                                   />
                                 )}
+                                {(msg.attachment?.url?.startsWith(
+                                  "https://res.cloudinary.com/",
+                                ) || msg.attachment?.url?.startsWith("blob:")) && (
+                                  <a
+                                    href={msg.attachment.url.replace(
+                                      "/upload/",
+                                      "/upload/fl_attachment/",
+                                    )}
+                                    download={msg.attachment.name}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={styles.attachmentCard}
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      width="22"
+                                      height="22"
+                                      fill="currentColor"
+                                      viewBox="0 0 16 16"
+                                      aria-hidden="true"
+                                    >
+                                      <path d="M4 1.5A1.5 1.5 0 0 1 5.5 0h5L15 4.5v10a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 4 14.5zm7 0V5h3.5zM6 8.5a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1zm0 2.5a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1z" />
+                                    </svg>
+                                    <span className={styles.attachmentDetails}>
+                                      <strong className={styles.attachmentName}>
+                                        {msg.attachment.name || "Download file"}
+                                      </strong>
+                                      <small className={styles.attachmentType}>
+                                        {msg.attachment.type || "File"}
+                                      </small>
+                                    </span>
+                                    <span
+                                      className={styles.attachmentDownload}
+                                      aria-hidden="true"
+                                    >
+                                      Download
+                                    </span>
+                                  </a>
+                                )}
                                 {msg.reactions &&
                                   Object.keys(msg.reactions).length > 0 && (
                                     <div className={styles.reactionBadgesRow}>

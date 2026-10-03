@@ -37,6 +37,8 @@ export default function ChatShell({
     roomLoading,
     selectedImage,
     setSelectedImage,
+    selectedAttachment,
+    setSelectedAttachment,
     isSendingImage,
     editingMessageId,
     setEditingMessageId,
@@ -65,6 +67,7 @@ export default function ChatShell({
     handlePaste,
     handleSendMessage,
     fileInputRef,
+    attachmentInputRef,
     isSending,
     sendError,
     handleToggleReaction,
@@ -155,6 +158,9 @@ export default function ChatShell({
             roomLoading={roomLoading}
             isSendingImage={isSendingImage}
             fileInputRef={fileInputRef}
+            attachmentInputRef={attachmentInputRef}
+            selectedAttachment={selectedAttachment}
+            setSelectedAttachment={setSelectedAttachment}
             isSending={isSending}
             sendError={sendError}
             isRecording={recording.isRecording}

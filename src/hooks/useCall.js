@@ -83,6 +83,7 @@ export default function useCall({ userRef, socketRef }) {
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
   const localStreamRef = useRef(null);
+  const remoteMediaStreamRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -200,7 +201,22 @@ export default function useCall({ userRef, socketRef }) {
         peerConnection.addTrack(track, localStreamRef.current),
       );
 
-    peerConnection.ontrack = (event) => setRemoteStream(event.streams[0]);
+    peerConnection.ontrack = (event) => {
+      let stream = event.streams?.[0];
+      if (!stream) {
+        stream = remoteMediaStreamRef.current;
+        if (!stream) {
+          stream = new MediaStream();
+          remoteMediaStreamRef.current = stream;
+        }
+        if (!stream.getTracks().some((track) => track.id === event.track.id)) {
+          stream.addTrack(event.track);
+        }
+      } else {
+        remoteMediaStreamRef.current = stream;
+      }
+      setRemoteStream(stream);
+    };
 
     peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
@@ -242,14 +258,18 @@ export default function useCall({ userRef, socketRef }) {
   // notification is replaced instead of duplicated.
   const showNativeIncomingCall = useCallback(async ({ from, name, signal }) => {
     if (!from) return;
-    // If the app is already in the foreground the in-app modal is ringing, so
-    // raising the OS full-screen call too would show two competing UIs.
-    if (
-      typeof document !== "undefined" &&
-      document.visibilityState === "visible"
-    ) {
-      return;
+    let appIsForeground = document.visibilityState === "visible";
+    const callConnection = await getCallConnection();
+    try {
+      const state = await callConnection?.isAppInForeground();
+      if (typeof state?.foreground === "boolean") {
+        appIsForeground = state.foreground;
+      }
+    } catch (error) {
+      console.warn("Could not read native app foreground state:", error);
     }
+    if (appIsForeground) return;
+
     const IncomingCallKit = await getIncomingCallKit();
     if (!IncomingCallKit) return;
     try {
@@ -338,6 +358,7 @@ export default function useCall({ userRef, socketRef }) {
     dismissNativeCall();
     setLocalStream(null);
     setRemoteStream(null);
+    remoteMediaStreamRef.current = null;
     setCallStatus("idle");
     setIncomingSignal(null);
     iceCandidateQueueRef.current = [];

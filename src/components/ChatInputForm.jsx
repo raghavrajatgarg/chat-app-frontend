@@ -17,6 +17,9 @@ export default function ChatInputForm({
   roomLoading,
   isSendingImage,
   fileInputRef,
+  attachmentInputRef,
+  selectedAttachment,
+  setSelectedAttachment,
   isSending,
   isRecording,
   startRecording,
@@ -30,6 +33,7 @@ export default function ChatInputForm({
   setCaptureType,
 }) {
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [attachmentError, setAttachmentError] = useState("");
   const menuRef = useRef(null);
   const textareaRef = useRef(null);
   const cameraInputRef = useRef(null);
@@ -99,7 +103,25 @@ export default function ChatInputForm({
 
   const handleSelectPhotos = () => {
     setShowAttachMenu(false);
-    fileInputRef.current.click();
+    fileInputRef.current?.click();
+  };
+
+  const handleSelectFiles = () => {
+    setShowAttachMenu(false);
+    attachmentInputRef.current?.click();
+  };
+
+  const handleAttachmentChange = (event) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        setAttachmentError("Files must be 10 MB or smaller.");
+      } else {
+        setAttachmentError("");
+        setSelectedAttachment(file);
+      }
+    }
+    event.target.value = "";
   };
 
   const handleSelectAudio = () => {
@@ -123,6 +145,11 @@ export default function ChatInputForm({
       {sendError && (
         <p className={styles.sendError} role="alert">
           {sendError}
+        </p>
+      )}
+      {attachmentError && (
+        <p className={styles.sendError} role="alert">
+          {attachmentError}
         </p>
       )}
       {isRecording ? (
@@ -232,6 +259,13 @@ export default function ChatInputForm({
 
           <input
             type="file"
+            ref={attachmentInputRef}
+            onChange={handleAttachmentChange}
+            style={{ display: "none" }}
+          />
+
+          <input
+            type="file"
             accept="image/*"
             capture="environment"
             ref={cameraInputRef}
@@ -284,6 +318,24 @@ export default function ChatInputForm({
                     <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z" />
                   </svg>
                   <span>Upload Photo</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSelectFiles}
+                  className={styles.dropupItem}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    fill="currentColor"
+                    viewBox="0 0 16 16"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 1.5A1.5 1.5 0 0 1 5.5 0h5L15 4.5v10a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 4 14.5zm7 0V5h3.5zM6 8.5a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1zm0 2.5a.5.5 0 0 0 0 1h4a.5.5 0 0 0 0-1z" />
+                  </svg>
+                  <span>Attach file</span>
                 </button>
 
                 {/* Screenshot Studio Button */}
@@ -383,7 +435,7 @@ export default function ChatInputForm({
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 if (
-                  newMessage.trim() &&
+                  (newMessage.trim() || selectedAttachment) &&
                   !roomLoading &&
                   !isSendingImage &&
                   !isSending
@@ -403,6 +455,22 @@ export default function ChatInputForm({
             rows={1}
             className={styles.chatInput}
           />
+
+          {selectedAttachment && (
+            <div className={styles.selectedAttachment}>
+              <span className={styles.selectedAttachmentName}>
+                {selectedAttachment.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedAttachment(null)}
+                title="Remove attachment"
+                aria-label="Remove attachment"
+              >
+                ×
+              </button>
+            </div>
+          )}
 
           <button
             type="submit"

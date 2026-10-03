@@ -78,7 +78,7 @@ public class MyVoipMessagingService extends MessagingService {
                 "ringing"
             );
 
-            IncomingCallController.showIncomingCall(getApplicationContext(), record, true);
+            IncomingCallController.showIncomingCall(getApplicationContext(), record, false);
             // Do not fall through: a VoIP ring must not surface as a chat
             // notification as well.
             return;

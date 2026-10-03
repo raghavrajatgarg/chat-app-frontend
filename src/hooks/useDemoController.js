@@ -91,6 +91,7 @@ export default function useDemoController() {
   const [room, setRoom] = useState("general");
   const [newMessage, setNewMessage] = useState("");
   const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedAttachment, setSelectedAttachment] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeThreadMessage, setActiveThreadMessage] = useState(null);
   const [threadMessages, setThreadMessages] = useState([]);
@@ -106,6 +107,7 @@ export default function useDemoController() {
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const searchInputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const attachmentInputRef = useRef(null);
   const messagesEndRef = useRef(null);
 
   const activeUsers = DEMO_USERS;
@@ -139,10 +141,22 @@ export default function useDemoController() {
 
   const handleSendMessage = (event) => {
     event.preventDefault();
-    if (!newMessage.trim() && !selectedImage) return;
-    addLocalMessage({ text: newMessage.trim(), image: selectedImage || null });
+    if (!newMessage.trim() && !selectedImage && !selectedAttachment) return;
+    addLocalMessage({
+      text: newMessage.trim(),
+      image: selectedImage || null,
+      attachment: selectedAttachment
+        ? {
+            url: URL.createObjectURL(selectedAttachment),
+            name: selectedAttachment.name,
+            type: selectedAttachment.type,
+            size: selectedAttachment.size,
+          }
+        : null,
+    });
     setNewMessage("");
     setSelectedImage(null);
+    setSelectedAttachment(null);
   };
 
   const handleSendAudio = async (audioBlob) => {
@@ -260,6 +274,8 @@ export default function useDemoController() {
     setShowScrollBtn,
     selectedImage,
     setSelectedImage,
+    selectedAttachment,
+    setSelectedAttachment,
     isSendingImage: false,
     editingMessageId,
     setEditingMessageId,
@@ -281,6 +297,7 @@ export default function useDemoController() {
     setThreadInput,
     searchInputRef,
     fileInputRef,
+    attachmentInputRef,
     messagesEndRef,
     socketRef: { current: null },
     isPrivateRoom: room.includes("_"),

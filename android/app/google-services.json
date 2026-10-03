@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "566031305634-g5kdgcqqg760h8lkppvkpj5i33gginvt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.raghav.chatapp",
+            "certificate_hash": "863df215a9110d251b5e461d230fcca1345a2591"
+          }
+        },
+        {
           "client_id": "566031305634-qqlhtd2vd6cohfb2nnsh463aksvc2ccm.apps.googleusercontent.com",
           "client_type": 3
         }

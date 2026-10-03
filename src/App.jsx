@@ -23,6 +23,7 @@ export default function App() {
   const demo = useDemoController();
   const socketRef = useRef(null);
   const userRef = useRef(null);
+  const callPermissionSetupRef = useRef(null);
   const call = useCall({ userRef, socketRef });
   const callRef = useRef(call);
   useEffect(() => {
@@ -61,6 +62,52 @@ export default function App() {
       window.triggerStudioEditOverride = null;
     };
   }, [setSelectedImage]);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) {
+      callPermissionSetupRef.current = Promise.resolve({
+        notificationsGranted: false,
+      });
+      return undefined;
+    }
+
+    const promptKey = "call-notification-permissions-prompted-v1";
+    const wasPrompted = window.localStorage.getItem(promptKey);
+
+    callPermissionSetupRef.current = (async () => {
+      try {
+        const { IncomingCallKit } = await import(
+          "@capgo/capacitor-incoming-call-kit"
+        );
+        let permissions = await IncomingCallKit.checkPermissions();
+
+        if (!wasPrompted && (
+          permissions.notifications === "prompt" ||
+          permissions.notifications === "prompt-with-rationale"
+        )) {
+          permissions = await IncomingCallKit.requestPermissions();
+        }
+
+        let notificationsGranted = permissions.notifications === "granted";
+        if (permissions.notifications === "notApplicable") {
+          const pushPermission = await PushNotifications.requestPermissions();
+          notificationsGranted = pushPermission.receive === "granted";
+        }
+
+        if (!wasPrompted && Capacitor.getPlatform() === "android") {
+          const callConnection = Capacitor.registerPlugin("CallConnection");
+          await callConnection.openCallNotificationSettings();
+        }
+        if (!wasPrompted) window.localStorage.setItem(promptKey, "true");
+        return { notificationsGranted };
+      } catch (error) {
+        console.warn("First-launch call permission setup failed:", error);
+        return { notificationsGranted: false };
+      }
+    })();
+    return undefined;
+  }, []);
+
 // Native Mobile Device Call Handler Integration
 useEffect(() => {
   if (!Capacitor.isNativePlatform() || !chat.user) return undefined;
@@ -94,14 +141,15 @@ useEffect(() => {
       console.warn("Failed to attach FCM registration listener:", error);
     }
 
-    // Request permission and register only after the token listener is ready.
+    const permissionStatus = await callPermissionSetupRef.current;
+
+    // Register only after the token listener and first-launch permission flow are ready.
     try {
-      const result = await PushNotifications.requestPermissions();
-      if (result.receive === "granted") {
+      if (permissionStatus?.notificationsGranted) {
         await PushNotifications.register();
       }
     } catch (error) {
-      console.warn("Push permission request failed:", error);
+      console.warn("Push registration failed:", error);
     }
 
     // 3. Load the native call kit. The plugin exports `IncomingCallKit`
@@ -115,34 +163,6 @@ useEffect(() => {
       return;
     }
     if (cancelled || !IncomingCallKit) return;
-
-    // Lock-screen / full-screen calls require notification + full-screen-intent
-    // permissions (Android 13 / 14).
-    // If notifications are blocked the OS silently swallows every call
-    // notification, so a blocked state must never fail quietly.
-    let notificationsBlocked = false;
-    try {
-      let permissions = await IncomingCallKit.checkPermissions();
-      if (
-        permissions.notifications === "prompt" ||
-        permissions.notifications === "prompt-with-rationale"
-      ) {
-        // Re-read the state: the pre-request snapshot is stale either way.
-        permissions = await IncomingCallKit.requestPermissions();
-      }
-      notificationsBlocked = permissions.notifications === "denied";
-
-      if (
-        permissions.fullScreenIntent === "prompt" ||
-        permissions.fullScreenIntent === "denied"
-      ) {
-        // Android 14+: opens Special app access -> Manage full screen intents.
-        // Without it the call still rings, but only as a heads-up banner.
-        await IncomingCallKit.requestFullScreenIntentPermission();
-      }
-    } catch (error) {
-      console.warn("Call kit permission check failed:", error);
-    }
 
     // The plugin's event payload is { call, reason, source } and the metadata
     // we passed to showIncomingCall lives under call.extra.
@@ -200,16 +220,6 @@ useEffect(() => {
     // lock-screen accept never stalls on a permission dialog it cannot show.
     callRef.current.warmUpMediaPermissions?.();
 
-    if (notificationsBlocked && !cancelled) {
-      console.warn(
-        "Notifications are blocked; incoming calls cannot ring until the user enables them.",
-      );
-      alert(
-        "Incoming calls can't ring because notifications are blocked for this app.\n\n" +
-          "Open Settings > Apps > this app > Notifications and allow notifications, " +
-          "then allow \"Full screen notifications\" under Special app access.",
-      );
-    }
   };
 
   setupNativeCalling();

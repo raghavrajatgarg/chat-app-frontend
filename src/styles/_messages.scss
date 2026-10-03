@@ -234,6 +234,47 @@
   cursor: pointer;
   object-fit: cover;
 }
+
+.attachmentCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(320px, 100%);
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.attachmentDetails {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.attachmentName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachmentType {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachmentDownload {
+  flex: 0 0 auto;
+  color: var(--accent-blue);
+  font-size: 11px;
+}
+
 /* ==========================================
    Message Reactions Styles (Badges)
    ================================---------- */
